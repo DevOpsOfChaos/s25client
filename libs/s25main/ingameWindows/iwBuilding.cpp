@@ -29,6 +29,15 @@
 const unsigned IODAT_BOAT_ID = 219;
 const unsigned IODAT_SHIP_ID = 218;
 
+namespace {
+std::string GetShipyardModeTooltip(const nobShipYard::Mode mode)
+{
+    return mode == nobShipYard::Mode::Boats
+             ? _("Currently building boats for waterways. Click to build ships for expeditions.")
+             : _("Currently building ships for expeditions. Click to build boats for waterways.");
+}
+} // namespace
+
 iwBuilding::iwBuilding(GameWorldView& gwv, GameCommandFactory& gcFactory, nobUsual* const building, Extent extent)
     : IngameWindow(CGI_BUILDING + MapBase::CreateGUIID(building->GetPos()), IngameWindow::posAtMouse, extent,
                    _(BUILDING_NAMES[building->GetBuildingType()]), LOADER.GetImageN("resource", 41)),
@@ -75,7 +84,8 @@ iwBuilding::iwBuilding(GameWorldView& gwv, GameCommandFactory& gcFactory, nobUsu
         unsigned io_dat_id =
           (static_cast<nobShipYard*>(building)->GetMode() == nobShipYard::Mode::Boats) ? IODAT_BOAT_ID : IODAT_SHIP_ID;
         AddImageButton(11, DrawPoint(130, extent.y - 47), Extent(43, 32), TextureColor::Grey,
-                       LOADER.GetImageN("io", io_dat_id), _("Ships/Boats"));
+                       LOADER.GetImageN("io", io_dat_id),
+                       GetShipyardModeTooltip(static_cast<nobShipYard*>(building)->GetMode()));
     }
 
     // "Gehe Zum Ort"
@@ -204,9 +214,15 @@ void iwBuilding::Msg_ButtonClick(const unsigned ctrl_id)
                 // Auch optisch den Button umstellen
                 auto* button = GetCtrl<ctrlImageButton>(11);
                 if(button->GetImage() == LOADER.GetImageN("io", IODAT_BOAT_ID))
+                {
                     button->SetImage(LOADER.GetImageN("io", IODAT_SHIP_ID));
+                    button->SetTooltip(GetShipyardModeTooltip(nobShipYard::Mode::Ships));
+                }
                 else
+                {
                     button->SetImage(LOADER.GetImageN("io", IODAT_BOAT_ID));
+                    button->SetTooltip(GetShipyardModeTooltip(nobShipYard::Mode::Boats));
+                }
             }
         }
         break;

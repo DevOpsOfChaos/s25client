@@ -24,7 +24,7 @@ iwHarborBuilding::iwHarborBuilding(GameWorldView& gwv, GameCommandFactory& gcFac
 
     // Button zum Expedition starten
     harbor_page.AddImageButton(1, DrawPoint(65, 100), Extent(30, 30), TextureColor::Grey, LOADER.GetImageN("io", 176),
-                               _("Start expedition"));
+                               _("Start expedition to found a new harbor colony"));
     AdjustExpeditionButton(false);
 
     // "Expedition"-Überschrift
@@ -32,7 +32,7 @@ iwHarborBuilding::iwHarborBuilding(GameWorldView& gwv, GameCommandFactory& gcFac
 
     // Button zum Expedition starten
     harbor_page.AddImageButton(3, DrawPoint(65, 170), Extent(30, 30), TextureColor::Grey, LOADER.GetImageN("io", 176),
-                               _("Start exporation expedition"));
+                               _("Start exploration expedition to discover unknown harbor spots"));
     AdjustExplorationExpeditionButton(false);
 }
 
@@ -59,7 +59,7 @@ void iwHarborBuilding::AdjustExpeditionButton(bool flip)
     } else
     {
         button->SetModulationColor(COLOR_RED);
-        button->SetTooltip(_("Start expedition"));
+        button->SetTooltip(_("Start expedition to found a new harbor colony"));
     }
 }
 
@@ -82,11 +82,11 @@ void iwHarborBuilding::AdjustExplorationExpeditionButton(bool flip)
     if((flip || exp) && !(flip && exp))
     {
         button->SetModulationColor(COLOR_WHITE);
-        button->SetTooltip(_("Cancel expedition"));
+        button->SetTooltip(_("Cancel exploration expedition"));
     } else
     {
         button->SetModulationColor(COLOR_RED);
-        button->SetTooltip(_("Start expedition"));
+        button->SetTooltip(_("Start exploration expedition to discover unknown harbor spots"));
     }
 }
 

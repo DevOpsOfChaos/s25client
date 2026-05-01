@@ -295,7 +295,11 @@ const helpers::EnumArray<const char*, BuildingType> BUILDING_HELP_STRINGS = {{
                "cargo ships in a shipyard. The "
                "boards required for this are "
                "skillfully worked by "
-               "shipwrights."),
+               "shipwrights. Rowing boats are "
+               "used by carriers on waterways; "
+               "cargo ships are used for "
+               "expeditions and transport "
+               "between harbors."),
   // Farm
   gettext_noop("The farmer plants and harvests "
                "grain in the surrounding fields. "
@@ -312,7 +316,10 @@ const helpers::EnumArray<const char*, BuildingType> BUILDING_HELP_STRINGS = {{
   gettext_noop("Ships can only be loaded and "
                "unloaded in a harbor. "
                "Expeditions can also be prepared "
-               "here. You can release certain "
+               "here. Harbors can only be built "
+               "on map-defined harbor spots; "
+               "coastline alone is not enough. "
+               "You can release certain "
                "merchandise from the storehouse, "
                "as and when required. "
                "Alternatively, the storage "
