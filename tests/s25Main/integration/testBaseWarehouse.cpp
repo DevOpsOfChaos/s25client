@@ -4,13 +4,17 @@
 
 #include "GamePlayer.h"
 #include "RTTR_AssertError.h"
+#include "Ware.h"
 #include "buildings/nobBaseWarehouse.h"
+#include "buildings/noBuildingSite.h"
 #include "factories/BuildingFactory.h"
 #include "figures/nofPassiveSoldier.h"
 #include "figures/nofScout_Free.h"
+#include "nodeObjs/noFlag.h"
 #include "worldFixtures/CreateEmptyWorld.h"
 #include "worldFixtures/WorldFixture.h"
 #include "worldFixtures/WorldWithGCExecution.h"
+#include "gameData/BuildingConsts.h"
 #include "gameTypes/GoodTypes.h"
 #include "gameTypes/JobTypes.h"
 #include "gameData/ShieldConsts.h"
@@ -74,6 +78,7 @@ struct AddGoodsFixture : public WorldFixture<CreateEmptyWorld, 1>, public rttr::
 };
 
 using EmptyWorldFixture1P = WorldFixture<CreateEmptyWorld, 1>;
+using LogisticsWarehouseFixture = WorldWithGCExecution<1, 32, 16>;
 
 } // namespace
 
@@ -283,6 +288,110 @@ BOOST_FIXTURE_TEST_CASE(CollectGoodsAndFigures, WorldWithGCExecution1P)
         BOOST_TEST(wh2->GetNumVisualWares(good) == 1u);
         BOOST_TEST(wh2->GetNumRealWares(good) == 1u);
     }
+}
+
+BOOST_FIXTURE_TEST_CASE(NearbyWarehouseSuppliesConnectedConstructionSite, LogisticsWarehouseFixture)
+{
+    GamePlayer& player = world.GetPlayer(curPlayer);
+    auto* hq = world.GetSpecObj<nobBaseWarehouse>(player.GetHQPos());
+    BOOST_TEST_REQUIRE(hq);
+
+    const MapPoint relayWhPos = hqPos + MapPoint(4, 0);
+    auto* relayWh = static_cast<nobBaseWarehouse*>(
+      BuildingFactory::CreateBuilding(world, BuildingType::Storehouse, relayWhPos, curPlayer, Nation::Romans));
+    BOOST_TEST_REQUIRE(relayWh);
+
+    this->BuildRoad(hq->GetFlagPos(), false, std::vector<Direction>(4, Direction::East));
+
+    GoodsAndPeopleCounts hqInv;
+    hqInv[GoodType::Boards] = 4;
+    hqInv[Job::Helper] = 2;
+    hqInv[Job::Builder] = 1;
+    hq->AddToInventory(hqInv, true);
+
+    GoodsAndPeopleCounts relayInv;
+    relayInv[GoodType::Boards] = 4;
+    relayInv[Job::Helper] = 2;
+    relayInv[Job::Builder] = 1;
+    relayWh->AddToInventory(relayInv, true);
+
+    const unsigned hqBoardsBefore = hq->GetNumRealWares(GoodType::Boards);
+    const unsigned relayBoardsBefore = relayWh->GetNumRealWares(GoodType::Boards);
+
+    const MapPoint sitePos = hqPos + MapPoint(7, 0);
+    this->SetBuildingSite(sitePos, BuildingType::Woodcutter);
+    auto* site = world.GetSpecObj<noBuildingSite>(sitePos);
+    BOOST_TEST_REQUIRE(site);
+
+    this->BuildRoad(relayWh->GetFlagPos(), false, std::vector<Direction>(3, Direction::East));
+
+    BOOST_TEST(relayWh->GetNumRealWares(GoodType::Boards)
+               == relayBoardsBefore - BUILDING_COSTS[BuildingType::Woodcutter].boards);
+    BOOST_TEST(hq->GetNumRealWares(GoodType::Boards) == hqBoardsBefore);
+    BOOST_TEST(site->CalcDistributionPoints(GoodType::Boards) == 0u);
+}
+
+BOOST_FIXTURE_TEST_CASE(WarePathfindingAvoidsBusyFlagWhenAlternateRoadExists, LogisticsWarehouseFixture)
+{
+    auto* hq = world.GetSpecObj<nobBaseWarehouse>(hqPos);
+    BOOST_TEST_REQUIRE(hq);
+    noFlag* startFlag = hq->GetFlag();
+    BOOST_TEST_REQUIRE(startFlag);
+
+    hq->AddToInventory(PeopleCounts::make(Job::Helper, 4), true);
+
+    const std::vector<Direction> directRoute(4, Direction::East);
+    this->BuildRoad(startFlag->GetPos(), false, directRoute);
+    noFlag* targetFlag = world.GetSpecObj<noFlag>(startFlag->GetPos() + MapPoint(4, 0));
+    BOOST_TEST_REQUIRE(targetFlag);
+
+    const std::vector<Direction> alternateRoute = {Direction::NorthEast, Direction::East, Direction::East,
+                                                   Direction::East,      Direction::East, Direction::SouthWest};
+    this->BuildRoad(startFlag->GetPos(), false, alternateRoute);
+
+    unsigned pathCosts = 0;
+    BOOST_TEST(static_cast<unsigned>(world.FindPathForWareOnRoads(*startFlag, *targetFlag, &pathCosts))
+               == static_cast<unsigned>(RoadPathDirection::East));
+
+    GamePlayer& player = world.GetPlayer(curPlayer);
+    for(unsigned i = 0; i < 8; ++i)
+    {
+        player.IncreaseInventoryWare(GoodType::Boards, 1);
+        auto ware = std::make_unique<Ware>(GoodType::Boards, nullptr, startFlag);
+        ware->SetNextDir(Direction::East);
+        ware->WaitAtFlag(startFlag);
+        startFlag->AddWare(std::move(ware));
+    }
+
+    BOOST_TEST(startFlag->GetNumWaresForRoad(Direction::East) == 8u);
+    BOOST_TEST(static_cast<unsigned>(world.FindPathForWareOnRoads(*startFlag, *targetFlag, &pathCosts))
+               == static_cast<unsigned>(RoadPathDirection::NorthEast));
+}
+
+BOOST_FIXTURE_TEST_CASE(MilitaryWarehouseAttractsRecruitmentGoods, LogisticsWarehouseFixture)
+{
+    GamePlayer& player = world.GetPlayer(curPlayer);
+    auto* hq = world.GetSpecObj<nobBaseWarehouse>(hqPos);
+    BOOST_TEST_REQUIRE(hq);
+
+    const MapPoint militaryWhPos = hqPos + MapPoint(4, 0);
+    auto* militaryWh = static_cast<nobBaseWarehouse*>(
+      BuildingFactory::CreateBuilding(world, BuildingType::Storehouse, militaryWhPos, curPlayer, Nation::Romans));
+    BOOST_TEST_REQUIRE(militaryWh);
+
+    this->BuildRoad(hq->GetFlagPos(), false, std::vector<Direction>(4, Direction::East));
+    this->SetMilitaryWarehouse(militaryWhPos);
+
+    player.IncreaseInventoryWare(GoodType::Beer, 1);
+    auto beer = std::make_unique<Ware>(GoodType::Beer, nullptr, hq->GetFlag());
+    noBaseBuilding* target = player.FindClientForWare(*beer);
+
+    BOOST_TEST_REQUIRE(target);
+    BOOST_TEST(target->GetPos().x == militaryWhPos.x);
+    BOOST_TEST(target->GetPos().y == militaryWhPos.y);
+
+    beer->WareLost(curPlayer);
+    beer->Destroy();
 }
 
 BOOST_FIXTURE_TEST_CASE(AddSoldierWithArmor, EmptyWorldFixture1P)

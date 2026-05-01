@@ -194,8 +194,7 @@ BOOST_FIXTURE_TEST_CASE(CloseHarborSpots, WorldFixture<UninitializedWorldCreator
     hbPos.push_back(MapPoint(0, 10));
     hbPos.push_back(world.GetNeighbour(hbPos.back(), Direction::SouthEast));
 
-    hbPos.push_back(MapPoint(20, 10));
-    hbPos.push_back(world.GetNeighbour(hbPos.back(), Direction::SouthWest));
+    hbPos.push_back(world.GetNeighbour(hbPos[3], Direction::SouthWest));
 
     // Place land in radius 2
     for(const MapPoint& pt : hbPos)
