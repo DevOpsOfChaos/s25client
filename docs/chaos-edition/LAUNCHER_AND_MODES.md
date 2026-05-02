@@ -119,6 +119,10 @@ Implementation note: the codebase also contains a minimal compatibility decision
 rules profile, supported feature set, and required feature list for future map/save gates. It is not wired into real
 loaders yet.
 
+Implementation note: the codebase now contains Compatibility Status v1. It combines the selected rules profile,
+supported Chaos features, target requirements, and the compatibility decision into a reusable read-only status layer.
+The Chaos options tab displays a summary of that status, but this still does not enforce map or save loading.
+
 Feature requirements should record at least:
 
 - A feature identifier.

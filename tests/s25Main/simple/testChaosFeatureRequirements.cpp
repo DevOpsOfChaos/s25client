@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "ChaosFeatureRequirements.h"
+#include "ChaosCompatibilityStatus.h"
 
 #include <boost/test/unit_test.hpp>
 #include <string>
@@ -134,6 +134,57 @@ BOOST_AUTO_TEST_CASE(CompatibilityDecisionMissingFeaturesAreDeterministicAndUniq
     BOOST_TEST_REQUIRE(decision.missingRequiredFeatures.size() == 2u);
     BOOST_TEST(static_cast<int>(decision.missingRequiredFeatures[0]) == static_cast<int>(chaos::FeatureId::ExtendedAi));
     BOOST_TEST(static_cast<int>(decision.missingRequiredFeatures[1])
+               == static_cast<int>(chaos::FeatureId::MapMetadataV1));
+}
+
+BOOST_AUTO_TEST_CASE(CompatibilityStatusAllowsEmptyRequirements)
+{
+    const auto status = chaos::GetCompatibilityStatus(RulesProfile::RttrCompatible);
+
+    BOOST_TEST(static_cast<int>(status.rulesProfile) == static_cast<int>(RulesProfile::RttrCompatible));
+    BOOST_TEST(status.requiredFeatures.empty());
+    BOOST_TEST(status.decision.allowed);
+    BOOST_TEST(status.decision.reasonKey == "chaos.compatibility.allowed");
+    BOOST_TEST(chaos::GetCompatibilityStatusDisplayName(status) == "Compatible");
+}
+
+BOOST_AUTO_TEST_CASE(CompatibilityStatusBlocksMissingRequirements)
+{
+    const chaos::RequiredFeatures requiredFeatures = {chaos::FeatureId::ExtendedAi};
+
+    const auto status = chaos::GetCompatibilityStatus(RulesProfile::Chaos, requiredFeatures);
+
+    BOOST_TEST(!status.decision.allowed);
+    BOOST_TEST_REQUIRE(status.decision.missingRequiredFeatures.size() == 1u);
+    BOOST_TEST(static_cast<int>(status.decision.missingRequiredFeatures[0])
+               == static_cast<int>(chaos::FeatureId::ExtendedAi));
+    BOOST_TEST(chaos::GetCompatibilityStatusDisplayName(status) == "Blocked");
+}
+
+BOOST_AUTO_TEST_CASE(CompatibilityStatusReflectsSelectedRulesProfile)
+{
+    const chaos::RequiredFeatures requiredFeatures = {chaos::FeatureId::RulesProfile};
+
+    const auto rttrStatus = chaos::GetCompatibilityStatus(RulesProfile::RttrCompatible, requiredFeatures);
+    const auto chaosStatus = chaos::GetCompatibilityStatus(RulesProfile::Chaos, requiredFeatures);
+
+    BOOST_TEST(!rttrStatus.decision.allowed);
+    BOOST_TEST(chaosStatus.decision.allowed);
+}
+
+BOOST_AUTO_TEST_CASE(CompatibilityStatusMissingFeaturesAreStable)
+{
+    const chaos::RequiredFeatures requiredFeatures = {chaos::FeatureId::ExtendedAi, chaos::FeatureId::RulesProfile,
+                                                      chaos::FeatureId::ExtendedAi, chaos::FeatureId::MapMetadataV1};
+    const chaos::SupportedFeatures supportedFeatures = {chaos::FeatureId::RulesProfile, chaos::FeatureId::ExtendedAi};
+
+    const auto status = chaos::BuildCompatibilityStatus(RulesProfile::Chaos, supportedFeatures, requiredFeatures);
+
+    BOOST_TEST(!status.decision.allowed);
+    BOOST_TEST_REQUIRE(status.decision.missingRequiredFeatures.size() == 2u);
+    BOOST_TEST(static_cast<int>(status.decision.missingRequiredFeatures[0])
+               == static_cast<int>(chaos::FeatureId::ExtendedAi));
+    BOOST_TEST(static_cast<int>(status.decision.missingRequiredFeatures[1])
                == static_cast<int>(chaos::FeatureId::MapMetadataV1));
 }
 

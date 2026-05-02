@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskOptions.h"
-#include "ChaosFeatureRequirements.h"
+#include "ChaosCompatibilityStatus.h"
 #include "GlobalGameSettings.h"
 #include "Loader.h"
 #include "MusicPlayer.h"
@@ -106,7 +106,7 @@ enum
     ID_txtChaosEdition,
     ID_txtChaosRulesProfile,
     ID_cbChaosRulesProfile,
-    ID_txtChaosPlaceholder,
+    ID_txtChaosStatus,
     ID_txtCommonPortrait,
     ID_btCommonPortrait,
     ID_cbCommonPortrait,
@@ -132,6 +132,20 @@ constexpr Offset ctrlOffset(200, -5);                       // Offset of control
 constexpr Offset ctrlOffset2 = ctrlOffset + Offset(200, 0); // Offset of 2nd control to its description text
 constexpr Extent ctrlSize(190, 22);
 constexpr Extent ctrlSizeLarge = ctrlSize + Extent(ctrlOffset2 - ctrlOffset);
+
+void UpdateChaosCompatibilityStatus(ctrlMultiline& chaosText, const RulesProfile rulesProfile)
+{
+    const chaos::CompatibilityStatus status = chaos::GetCompatibilityStatus(rulesProfile);
+    chaosText.Clear();
+    chaosText.AddString(
+      helpers::format(_("Current rules profile: %s"), _(GetRulesProfileDisplayName(status.rulesProfile))), COLOR_YELLOW,
+      false);
+    chaosText.AddString(
+      helpers::format(_("Baseline Chaos compatibility: %s"), _(chaos::GetCompatibilityStatusDisplayName(status))),
+      COLOR_YELLOW, false);
+    chaosText.AddString(_("Required features for this baseline: none"), COLOR_YELLOW, false);
+    chaosText.AddString(_("Real map and save compatibility gates are not active yet."), COLOR_YELLOW, false);
+}
 
 VideoMode getAspectRatio(const VideoMode vm)
 {
@@ -455,14 +469,9 @@ dskOptions::dskOptions() : Desktop(LOADER.GetImageN("setup013", 0))
     combo->SetSelection(SETTINGS.chaos.rulesProfile == RulesProfile::RttrCompatible ? 0 : 1);
     curPos.y += rowHeight;
     auto* chaosText =
-      groupChaos->AddMultiline(ID_txtChaosPlaceholder, curPos, Extent(610, 90), TextureColor::Invisible, NormalFont);
+      groupChaos->AddMultiline(ID_txtChaosStatus, curPos, Extent(610, 100), TextureColor::Invisible, NormalFont);
     chaosText->SetScrollBarAllowed(false);
-    chaosText->AddString(_("Rules profiles separate RTTR-compatible and Chaos behavior. This setting is stored now, "
-                           "but it does not change gameplay, maps, saves, networking, or launcher behavior yet."),
-                         COLOR_YELLOW);
-    chaosText->AddString(_("Future Chaos-only features will use explicit compatibility requirements before they affect "
-                           "maps or saves."),
-                         COLOR_YELLOW);
+    UpdateChaosCompatibilityStatus(*chaosText, SETTINGS.chaos.rulesProfile);
 
     // Select "General"
     mainGroup = GetCtrl<ctrlOptionGroup>(ID_grpOptions);
@@ -632,6 +641,8 @@ void dskOptions::Msg_Group_ComboSelectItem(const unsigned group_id, const unsign
         case ID_cbAudioDriver: SETTINGS.driver.audio = combo->GetText(selection); break;
         case ID_cbChaosRulesProfile:
             SETTINGS.chaos.rulesProfile = selection == 0 ? RulesProfile::RttrCompatible : RulesProfile::Chaos;
+            UpdateChaosCompatibilityStatus(*GetCtrl<ctrlGroup>(ID_grpChaos)->GetCtrl<ctrlMultiline>(ID_txtChaosStatus),
+                                           SETTINGS.chaos.rulesProfile);
             break;
         case ID_cbDisplayMode:
             SETTINGS.video.displayMode = DisplayMode(selection);
