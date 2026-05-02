@@ -110,6 +110,10 @@ Chaos features should be isolated through one or more explicit mechanisms:
 
 Every Chaos-only feature that affects loading or simulation should have a stable requirement identifier. Maps and saves can then declare the features they need, and the launcher or loader can determine whether the selected rules profile supports them.
 
+Implementation note: the codebase now contains a minimal non-persistent feature requirement metadata skeleton with stable
+Chaos feature keys and deterministic missing-feature calculation. It is not wired into map loading, save loading,
+networking, persistence, or compatibility blocking yet.
+
 Feature requirements should record at least:
 
 - A feature identifier.

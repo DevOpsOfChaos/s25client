@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskOptions.h"
+#include "ChaosFeatureRequirements.h"
 #include "GlobalGameSettings.h"
 #include "Loader.h"
 #include "MusicPlayer.h"
@@ -455,6 +456,7 @@ dskOptions::dskOptions() : Desktop(LOADER.GetImageN("setup013", 0))
     chaosText->AddString(_("Rules profiles will separate RTTR-compatible and Chaos behavior. Chaos-specific rules, "
                            "visuals, AI, and compatibility options will be configured here."),
                          COLOR_YELLOW);
+    chaosText->AddString(_("Feature requirements will be used to protect Chaos-only maps and saves."), COLOR_YELLOW);
 
     // Select "General"
     mainGroup = GetCtrl<ctrlOptionGroup>(ID_grpOptions);
