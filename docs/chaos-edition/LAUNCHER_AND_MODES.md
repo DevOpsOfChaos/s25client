@@ -114,6 +114,10 @@ Implementation note: the codebase now contains a minimal non-persistent feature 
 Chaos feature keys and deterministic missing-feature calculation. It is not wired into map loading, save loading,
 networking, persistence, or compatibility blocking yet.
 
+Implementation note: the codebase also contains a minimal compatibility decision skeleton that evaluates a selected
+rules profile, supported feature set, and required feature list for future map/save gates. It is not wired into real
+loaders yet.
+
 Feature requirements should record at least:
 
 - A feature identifier.

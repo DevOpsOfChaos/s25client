@@ -24,6 +24,13 @@ using FeatureList = std::vector<FeatureId>;
 using RequiredFeatures = FeatureList;
 using SupportedFeatures = FeatureList;
 
+struct CompatibilityDecision
+{
+    bool allowed;
+    RequiredFeatures missingRequiredFeatures;
+    const char* reasonKey;
+};
+
 inline const char* ToStableFeatureKey(const FeatureId featureId)
 {
     switch(featureId)
@@ -52,6 +59,20 @@ inline SupportedFeatures GetSupportedFeatures(const RulesProfile rulesProfile)
     return {};
 }
 
+inline SupportedFeatures GetSupportedFeaturesForDecision(const RulesProfile rulesProfile,
+                                                         const SupportedFeatures& supportedFeatures)
+{
+    const SupportedFeatures profileSupportedFeatures = GetSupportedFeatures(rulesProfile);
+    SupportedFeatures effectiveSupportedFeatures;
+    for(const FeatureId featureId : supportedFeatures)
+    {
+        if(ContainsFeature(profileSupportedFeatures, featureId)
+           && !ContainsFeature(effectiveSupportedFeatures, featureId))
+            effectiveSupportedFeatures.push_back(featureId);
+    }
+    return effectiveSupportedFeatures;
+}
+
 inline RequiredFeatures GetMissingFeatureRequirements(const RequiredFeatures& requiredFeatures,
                                                       const SupportedFeatures& supportedFeatures)
 {
@@ -62,6 +83,18 @@ inline RequiredFeatures GetMissingFeatureRequirements(const RequiredFeatures& re
             missingFeatures.push_back(featureId);
     }
     return missingFeatures;
+}
+
+inline CompatibilityDecision EvaluateCompatibility(const RulesProfile rulesProfile,
+                                                   const SupportedFeatures& supportedFeatures,
+                                                   const RequiredFeatures& requiredFeatures)
+{
+    const SupportedFeatures effectiveSupportedFeatures =
+      GetSupportedFeaturesForDecision(rulesProfile, supportedFeatures);
+    RequiredFeatures missingFeatures = GetMissingFeatureRequirements(requiredFeatures, effectiveSupportedFeatures);
+    const bool allowed = missingFeatures.empty();
+    return {allowed, missingFeatures,
+            allowed ? "chaos.compatibility.allowed" : "chaos.compatibility.missing_required_features"};
 }
 
 } // namespace chaos
