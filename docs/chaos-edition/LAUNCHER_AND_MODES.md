@@ -123,6 +123,14 @@ Implementation note: the codebase now contains Compatibility Status v1. It combi
 supported Chaos features, target requirements, and the compatibility decision into a reusable read-only status layer.
 The Chaos options tab displays a summary of that status, but this still does not enforce map or save loading.
 
+Implementation note: the codebase now contains Compatibility Metadata/Gate v1 for maps and saves. Content may declare
+optional sidecar metadata in a file named after the content path with `.chaos` appended, for example
+`example.swd.chaos` or `example.sav.chaos`. The v1 format is deterministic line-based `key=value` metadata with
+`rulesProfile`, `requiredFeatures`, and optional `minChaosVersion` keys. Missing sidecar metadata means normal existing
+maps and saves remain compatible with current loading behavior. Present metadata is checked when hosting/loading maps or
+saves through the shared server start path; incompatible or invalid metadata is blocked there. Exact user-facing error
+surfacing in the map/save picker UI is still deferred because the current host path reports only success or failure.
+
 Feature requirements should record at least:
 
 - A feature identifier.

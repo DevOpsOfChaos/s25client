@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "GameServer.h"
+#include "ChaosCompatibilityMetadata.h"
 #include "Debug.h"
 #include "GameMessage.h"
 #include "GameMessage_GameCommand.h"
@@ -122,6 +123,16 @@ bool GameServer::Start(const CreateServerInfo& csi, const MapDescription& map, c
     config.ipv6 = csi.ipv6;
     mapinfo.type = map.map_type;
     mapinfo.filepath = map.map_path;
+
+    const chaos::ContentCompatibilityResult compatibility =
+      chaos::EvaluateContentCompatibility(mapinfo.filepath, SETTINGS.chaos.rulesProfile);
+    if(!compatibility.decision.allowed)
+    {
+        LOG.write("GameServer::Start: ERROR: Content %1% is not compatible with the selected rules profile: %2% "
+                  "(metadata: %3%)\n")
+          % mapinfo.filepath % compatibility.message % compatibility.metadataPath;
+        return false;
+    }
 
     // Maps, Random-Maps, Savegames - Header laden und relevante Informationen rausschreiben (Map-Titel, Spieleranzahl)
     switch(mapinfo.type)
