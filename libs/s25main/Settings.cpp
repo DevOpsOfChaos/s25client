@@ -6,6 +6,7 @@
 #include "DrawPoint.h"
 #include "RTTR_Version.h"
 #include "RttrConfig.h"
+#include "RulesProfile.h"
 #include "driver/VideoInterface.h"
 #include "drivers/AudioDriverWrapper.h"
 #include "drivers/VideoDriverWrapper.h"
@@ -89,6 +90,11 @@ void Settings::LoadDefaults()
     global.smartCursor = true;
     global.debugMode = false;
     global.showGFInfo = false;
+    // }
+
+    // chaos
+    // {
+    chaos.rulesProfile = GetDefaultRulesProfile();
     // }
 
     // video
@@ -240,6 +246,11 @@ void Settings::Load()
         global.debugMode = iniGlobal->getValue("debugMode", false);
         global.showGFInfo = iniGlobal->getValue("showGFInfo", false);
         // };
+
+        // chaos
+        // {
+        chaos.rulesProfile = ParseRulesProfile(iniGlobal->getValue("chaos_rules_profile", ""));
+        // }
 
         // video
         // {
@@ -451,6 +462,11 @@ void Settings::Save()
     iniGlobal->setValue("debugMode", global.debugMode);
     iniGlobal->setValue("showGFInfo", global.showGFInfo);
     // };
+
+    // chaos
+    // {
+    iniGlobal->setValue("chaos_rules_profile", SerializeRulesProfile(chaos.rulesProfile));
+    // }
 
     // video
     // {

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 enum class RulesProfile
 {
     RttrCompatible,
@@ -20,7 +22,7 @@ constexpr bool IsChaosRulesProfile(const RulesProfile rulesProfile)
     return rulesProfile == RulesProfile::Chaos;
 }
 
-constexpr const char* GetRulesProfileName(const RulesProfile rulesProfile)
+constexpr const char* GetRulesProfileDisplayName(const RulesProfile rulesProfile)
 {
     switch(rulesProfile)
     {
@@ -28,4 +30,28 @@ constexpr const char* GetRulesProfileName(const RulesProfile rulesProfile)
         case RulesProfile::Chaos: return "Chaos";
     }
     return "Unknown";
+}
+
+constexpr const char* GetRulesProfileName(const RulesProfile rulesProfile)
+{
+    return GetRulesProfileDisplayName(rulesProfile);
+}
+
+constexpr const char* SerializeRulesProfile(const RulesProfile rulesProfile)
+{
+    switch(rulesProfile)
+    {
+        case RulesProfile::RttrCompatible: return "rttr-compatible";
+        case RulesProfile::Chaos: return "chaos";
+    }
+    return "chaos";
+}
+
+inline RulesProfile ParseRulesProfile(const std::string& value, const RulesProfile fallback = GetDefaultRulesProfile())
+{
+    if(value == SerializeRulesProfile(RulesProfile::RttrCompatible))
+        return RulesProfile::RttrCompatible;
+    if(value == SerializeRulesProfile(RulesProfile::Chaos))
+        return RulesProfile::Chaos;
+    return fallback;
 }

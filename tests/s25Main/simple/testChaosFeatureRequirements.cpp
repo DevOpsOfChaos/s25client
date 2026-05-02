@@ -5,8 +5,42 @@
 #include "ChaosFeatureRequirements.h"
 
 #include <boost/test/unit_test.hpp>
+#include <string>
 
 BOOST_AUTO_TEST_SUITE(ChaosFeatureRequirements)
+
+BOOST_AUTO_TEST_CASE(DefaultRulesProfileIsChaos)
+{
+    BOOST_TEST(static_cast<int>(GetDefaultRulesProfile()) == static_cast<int>(RulesProfile::Chaos));
+}
+
+BOOST_AUTO_TEST_CASE(RulesProfileDisplayNamesAreStable)
+{
+    BOOST_TEST(GetRulesProfileDisplayName(RulesProfile::RttrCompatible) == "RTTR-compatible");
+    BOOST_TEST(GetRulesProfileDisplayName(RulesProfile::Chaos) == "Chaos");
+}
+
+BOOST_AUTO_TEST_CASE(RulesProfileSerializationRoundtrips)
+{
+    BOOST_TEST(static_cast<int>(ParseRulesProfile(SerializeRulesProfile(RulesProfile::RttrCompatible)))
+               == static_cast<int>(RulesProfile::RttrCompatible));
+    BOOST_TEST(static_cast<int>(ParseRulesProfile(SerializeRulesProfile(RulesProfile::Chaos)))
+               == static_cast<int>(RulesProfile::Chaos));
+}
+
+BOOST_AUTO_TEST_CASE(InvalidRulesProfileFallsBackToDefault)
+{
+    BOOST_TEST(static_cast<int>(ParseRulesProfile("invalid")) == static_cast<int>(GetDefaultRulesProfile()));
+    BOOST_TEST(static_cast<int>(ParseRulesProfile("invalid", RulesProfile::RttrCompatible))
+               == static_cast<int>(RulesProfile::RttrCompatible));
+}
+
+BOOST_AUTO_TEST_CASE(RulesProfileValuesRemainDistinct)
+{
+    BOOST_TEST(static_cast<int>(RulesProfile::RttrCompatible) != static_cast<int>(RulesProfile::Chaos));
+    BOOST_TEST(std::string(SerializeRulesProfile(RulesProfile::RttrCompatible))
+               != SerializeRulesProfile(RulesProfile::Chaos));
+}
 
 BOOST_AUTO_TEST_CASE(FeatureIdsHaveStableKeys)
 {

@@ -57,9 +57,10 @@ Planned high-level rules profiles:
 - `RTTR-compatible`: Use behavior intended to remain compatible with upstream RTTR expectations where practical.
 - `Chaos`: Enable Chaos Edition behavior through explicit feature gates, settings, addons, or dedicated data paths.
 
-Implementation note: the codebase now contains a minimal non-persistent rules profile skeleton with these two profile
-names. It is metadata only at this stage and is not wired into gameplay, map loading, saves, networking, or launcher
-behavior.
+Implementation note: the codebase now contains Chaos Mode Configuration v1. The selected rules profile is persisted in
+the user settings as a narrow configuration value, and the Chaos options tab exposes a selector for these two profile
+names. It is still metadata only at this stage and is not wired into gameplay, map loading, saves, networking, or
+launcher behavior.
 
 The UI must label these choices clearly. If a user picks a classic appearance while keeping Chaos rules enabled, the launcher should not imply that maps, saves, networking, or replays are RTTR-compatible.
 

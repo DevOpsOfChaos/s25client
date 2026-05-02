@@ -105,6 +105,7 @@ enum
     ID_btMusicPlayer,
     ID_txtChaosEdition,
     ID_txtChaosRulesProfile,
+    ID_cbChaosRulesProfile,
     ID_txtChaosPlaceholder,
     ID_txtCommonPortrait,
     ID_btCommonPortrait,
@@ -446,17 +447,22 @@ dskOptions::dskOptions() : Desktop(LOADER.GetImageN("setup013", 0))
     groupChaos->AddText(ID_txtChaosEdition, curPos, rttr::version::GetEditionName(), COLOR_YELLOW, FontStyle{},
                         LargeFont);
     curPos.y += rowHeight + sectionSpacing;
-    groupChaos->AddText(ID_txtChaosRulesProfile, curPos,
-                        std::string(_("Rules profile: ")) + GetRulesProfileName(GetDefaultRulesProfile()), COLOR_YELLOW,
-                        FontStyle{}, NormalFont);
+    groupChaos->AddText(ID_txtChaosRulesProfile, curPos, _("Rules profile:"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    combo = groupChaos->AddComboBox(ID_cbChaosRulesProfile, curPos + ctrlOffset, ctrlSizeLarge, TextureColor::Grey,
+                                    NormalFont, 100);
+    combo->AddItem(_(GetRulesProfileDisplayName(RulesProfile::RttrCompatible)));
+    combo->AddItem(_(GetRulesProfileDisplayName(RulesProfile::Chaos)));
+    combo->SetSelection(SETTINGS.chaos.rulesProfile == RulesProfile::RttrCompatible ? 0 : 1);
     curPos.y += rowHeight;
     auto* chaosText =
       groupChaos->AddMultiline(ID_txtChaosPlaceholder, curPos, Extent(610, 90), TextureColor::Invisible, NormalFont);
     chaosText->SetScrollBarAllowed(false);
-    chaosText->AddString(_("Rules profiles will separate RTTR-compatible and Chaos behavior. Chaos-specific rules, "
-                           "visuals, AI, and compatibility options will be configured here."),
+    chaosText->AddString(_("Rules profiles separate RTTR-compatible and Chaos behavior. This setting is stored now, "
+                           "but it does not change gameplay, maps, saves, networking, or launcher behavior yet."),
                          COLOR_YELLOW);
-    chaosText->AddString(_("Feature requirements will be used to protect Chaos-only maps and saves."), COLOR_YELLOW);
+    chaosText->AddString(_("Future Chaos-only features will use explicit compatibility requirements before they affect "
+                           "maps or saves."),
+                         COLOR_YELLOW);
 
     // Select "General"
     mainGroup = GetCtrl<ctrlOptionGroup>(ID_grpOptions);
@@ -624,6 +630,9 @@ void dskOptions::Msg_Group_ComboSelectItem(const unsigned group_id, const unsign
             VIDEODRIVER.setGuiScalePercent(SETTINGS.video.guiScale);
             break;
         case ID_cbAudioDriver: SETTINGS.driver.audio = combo->GetText(selection); break;
+        case ID_cbChaosRulesProfile:
+            SETTINGS.chaos.rulesProfile = selection == 0 ? RulesProfile::RttrCompatible : RulesProfile::Chaos;
+            break;
         case ID_cbDisplayMode:
             SETTINGS.video.displayMode = DisplayMode(selection);
             updateResolutionGroups();

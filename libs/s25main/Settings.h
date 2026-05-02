@@ -5,6 +5,7 @@
 #pragma once
 
 #include "DrawPoint.h"
+#include "RulesProfile.h"
 #include "driver/VideoInterface.h"
 #include "driver/VideoMode.h"
 #include "s25util/ProxySettings.h"
@@ -74,6 +75,11 @@ public:
         SubmitDebugData submitDebugData;
         bool useUPNP, smartCursor, debugMode, showGFInfo;
     } global;
+
+    struct
+    {
+        RulesProfile rulesProfile;
+    } chaos;
 
     struct
     {
