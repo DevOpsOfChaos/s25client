@@ -6,6 +6,7 @@
 #include "CollisionDetection.h"
 #include "GlobalVars.h"
 #include "Loader.h"
+#include "RTTR_Version.h"
 #include "Settings.h"
 #include "WindowManager.h"
 #include "controls/ctrlButton.h"
@@ -29,6 +30,8 @@ enum
     ID_btCredits,
     ID_btQuit,
     ID_logo,
+    ID_txtEditionName,
+    ID_txtEditionAttribution,
     ID_tmrDebugData
 };
 
@@ -48,6 +51,10 @@ dskMainMenu::dskMainMenu()
     AddTextButton(ID_btQuit, DrawPoint(115, 390), Extent(220, 22), TextureColor::Red1, _("Quit program"), NormalFont);
 
     AddImage(ID_logo, DrawPoint(20, 20), LOADER.GetImageN("logo", 0));
+    AddText(ID_txtEditionName, DrawPoint(780, 20), rttr::version::GetEditionName(), COLOR_YELLOW, FontStyle::RIGHT,
+            LargeFont);
+    AddText(ID_txtEditionAttribution, DrawPoint(780, 45), rttr::version::GetEditionAttribution(), COLOR_YELLOW,
+            FontStyle::RIGHT, SmallFont);
 
     using namespace std::chrono_literals;
     if(SETTINGS.global.submitDebugData == SubmitDebugData::AskAtStart)

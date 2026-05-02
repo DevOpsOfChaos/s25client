@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "GlobalGameSettings.h"
+#include "RTTR_Version.h"
 #include "WindowManager.h"
 #include "controls/ctrlButton.h"
 #include "controls/ctrlCheck.h"
@@ -10,8 +11,10 @@
 #include "controls/ctrlGroup.h"
 #include "controls/ctrlImage.h"
 #include "controls/ctrlMultiline.h"
+#include "controls/ctrlText.h"
 #include "controls/ctrlTextButton.h"
 #include "desktops/Desktop.h"
+#include "desktops/dskMainMenu.h"
 #include "ingameWindows/iwAddons.h"
 #include "ingameWindows/iwSkipGFs.h"
 #include "ingameWindows/iwVictory.h"
@@ -84,6 +87,17 @@ BOOST_AUTO_TEST_CASE(AddonWindow)
         for(const auto* cb : readonlyGroup->GetCtrls<ctrlComboBox>())
             BOOST_TEST_REQUIRE(cb->isReadOnly());
     }
+}
+
+BOOST_AUTO_TEST_CASE(MainMenuShowsEditionBranding)
+{
+    const dskMainMenu wnd;
+    const auto texts = wnd.GetCtrls<ctrlText>();
+
+    BOOST_TEST_REQUIRE(helpers::contains_if(
+      texts, [](const ctrlText* text) { return text->GetText() == rttr::version::GetEditionName(); }));
+    BOOST_TEST_REQUIRE(helpers::contains_if(
+      texts, [](const ctrlText* text) { return text->GetText() == rttr::version::GetEditionAttribution(); }));
 }
 
 BOOST_FIXTURE_TEST_CASE(JumpWindow, SmallWorldFixture)
