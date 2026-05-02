@@ -6,12 +6,14 @@
 #include "GlobalGameSettings.h"
 #include "Loader.h"
 #include "MusicPlayer.h"
+#include "RTTR_Version.h"
 #include "Settings.h"
 #include "WindowManager.h"
 #include "controls/ctrlComboBox.h"
 #include "controls/ctrlEdit.h"
 #include "controls/ctrlGroup.h"
 #include "controls/ctrlImageButton.h"
+#include "controls/ctrlMultiline.h"
 #include "controls/ctrlOptionGroup.h"
 #include "controls/ctrlProgress.h"
 #include "controls/ctrlTextButton.h"
@@ -47,9 +49,11 @@ enum
     ID_btCommon,
     ID_btGraphics,
     ID_btSound,
+    ID_btChaos,
     ID_grpCommon,
     ID_grpGraphics,
     ID_grpSound,
+    ID_grpChaos,
     ID_txtName,
     ID_edtName,
     ID_txtLanguage,
@@ -97,6 +101,8 @@ enum
     ID_grpEffects,
     ID_pgEffectsVol,
     ID_btMusicPlayer,
+    ID_txtChaosEdition,
+    ID_txtChaosPlaceholder,
     ID_txtCommonPortrait,
     ID_btCommonPortrait,
     ID_cbCommonPortrait,
@@ -115,6 +121,8 @@ constexpr auto sectionSpacing = 20;
 constexpr auto sectionSpacingCommon = 10;
 constexpr auto optionRowsStartPosition = DrawPoint(80, 75);
 constexpr auto tabButtonsStartPosition = optionRowsStartPosition + Offset(0, static_cast<int>(rowHeight * 15.5));
+constexpr Extent tabButtonSize(145, 22);
+constexpr auto tabButtonSpacing = 20;
 
 constexpr Offset ctrlOffset(200, -5);                       // Offset of control to its description text
 constexpr Offset ctrlOffset2 = ctrlOffset + Offset(200, 0); // Offset of 2nd control to its description text
@@ -174,12 +182,14 @@ dskOptions::dskOptions() : Desktop(LOADER.GetImageN("setup013", 0))
     ctrlOptionGroup* mainGroup = AddOptionGroup(ID_grpOptions, GroupSelectType::Check);
 
     DrawPoint curPos = tabButtonsStartPosition;
-    mainGroup->AddTextButton(ID_btCommon, DrawPoint(curPos.x, curPos.y), Extent(200, 22), TextureColor::Green2,
+    mainGroup->AddTextButton(ID_btCommon, DrawPoint(curPos.x, curPos.y), tabButtonSize, TextureColor::Green2,
                              _("Common"), NormalFont);
-    mainGroup->AddTextButton(ID_btGraphics, DrawPoint(curPos.x + 220, curPos.y), Extent(200, 22), TextureColor::Green2,
-                             _("Graphics"), NormalFont);
-    mainGroup->AddTextButton(ID_btSound, DrawPoint(curPos.x + 440, curPos.y), Extent(200, 22), TextureColor::Green2,
-                             _("Sound/Music"), NormalFont);
+    mainGroup->AddTextButton(ID_btGraphics, DrawPoint(curPos.x + tabButtonSize.x + tabButtonSpacing, curPos.y),
+                             tabButtonSize, TextureColor::Green2, _("Graphics"), NormalFont);
+    mainGroup->AddTextButton(ID_btSound, DrawPoint(curPos.x + 2 * (tabButtonSize.x + tabButtonSpacing), curPos.y),
+                             tabButtonSize, TextureColor::Green2, _("Sound/Music"), NormalFont);
+    mainGroup->AddTextButton(ID_btChaos, DrawPoint(curPos.x + 3 * (tabButtonSize.x + tabButtonSpacing), curPos.y),
+                             tabButtonSize, TextureColor::Green2, _("Chaos"), NormalFont);
     curPos.y += rowHeight;
 
     AddTextButton(ID_btBack, DrawPoint(curPos.x + 220, curPos.y), Extent(200, 22), TextureColor::Red1, _("Back"),
@@ -190,6 +200,7 @@ dskOptions::dskOptions() : Desktop(LOADER.GetImageN("setup013", 0))
     ctrlGroup* groupCommon = AddGroup(ID_grpCommon);
     ctrlGroup* groupGraphics = AddGroup(ID_grpGraphics);
     ctrlGroup* groupSound = AddGroup(ID_grpSound);
+    ctrlGroup* groupChaos = AddGroup(ID_grpChaos);
     ctrlComboBox* combo;
 
     // Common
@@ -428,6 +439,16 @@ dskOptions::dskOptions() : Desktop(LOADER.GetImageN("setup013", 0))
             combo->SetSelection(combo->GetNumItems() - 1);
     }
 
+    curPos = optionRowsStartPosition;
+    groupChaos->AddText(ID_txtChaosEdition, curPos, rttr::version::GetEditionName(), COLOR_YELLOW, FontStyle{},
+                        LargeFont);
+    curPos.y += rowHeight + sectionSpacing;
+    auto* chaosText =
+      groupChaos->AddMultiline(ID_txtChaosPlaceholder, curPos, Extent(610, 90), TextureColor::Invisible, NormalFont);
+    chaosText->SetScrollBarAllowed(false);
+    chaosText->AddString(_("Chaos-specific rules, visuals, AI, and compatibility options will be configured here."),
+                         COLOR_YELLOW);
+
     // Select "General"
     mainGroup = GetCtrl<ctrlOptionGroup>(ID_grpOptions);
     mainGroup->SetSelection(ID_btCommon, true);
@@ -647,7 +668,7 @@ void dskOptions::Msg_OptionGroupChange(const unsigned ctrl_id, const unsigned se
     if(ctrl_id == ID_grpOptions)
     {
         const auto visGrp = selection + ID_grpCommon - ID_btCommon;
-        for(const unsigned id : {ID_grpCommon, ID_grpGraphics, ID_grpSound})
+        for(const unsigned id : {ID_grpCommon, ID_grpGraphics, ID_grpSound, ID_grpChaos})
             GetCtrl<ctrlGroup>(id)->SetVisible(id == visGrp);
     }
 }
