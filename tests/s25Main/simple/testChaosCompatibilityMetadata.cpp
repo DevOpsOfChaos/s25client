@@ -40,15 +40,18 @@ BOOST_AUTO_TEST_CASE(ValidMetadataWithSupportedFeaturesIsCompatible)
 {
     const rttr::test::TmpFolder tmp;
     const boost::filesystem::path mapPath = tmp / "chaos.swd";
-    WriteMetadata(mapPath, "rulesProfile=chaos\nrequiredFeatures=chaos.rules_profile\nminChaosVersion=1\n");
+    WriteMetadata(mapPath, "rulesProfile=chaos\nrequiredFeatures=chaos.rules_profile, "
+                           "chaos.ui.compatibility_preview_status\nminChaosVersion=1\n");
 
     const auto result = chaos::EvaluateContentCompatibility(mapPath, RulesProfile::Chaos);
 
     BOOST_TEST(static_cast<int>(result.metadataResult.status) == static_cast<int>(chaos::MetadataReadStatus::Valid));
     BOOST_TEST(result.decision.allowed);
-    BOOST_TEST_REQUIRE(result.metadataResult.metadata.requiredFeatures.size() == 1u);
+    BOOST_TEST_REQUIRE(result.metadataResult.metadata.requiredFeatures.size() == 2u);
     BOOST_TEST(static_cast<int>(result.metadataResult.metadata.requiredFeatures[0])
                == static_cast<int>(chaos::FeatureId::RulesProfile));
+    BOOST_TEST(static_cast<int>(result.metadataResult.metadata.requiredFeatures[1])
+               == static_cast<int>(chaos::FeatureId::CompatibilityPreviewStatus));
     BOOST_TEST(result.metadataResult.metadata.minChaosVersion == "1");
 }
 
@@ -74,14 +77,17 @@ BOOST_AUTO_TEST_CASE(RttrCompatibleProfileBlocksChaosOnlyRequirements)
 {
     const rttr::test::TmpFolder tmp;
     const boost::filesystem::path mapPath = tmp / "chaos-only.swd";
-    WriteMetadata(mapPath, "rulesProfile=chaos\nrequiredFeatures=chaos.rules_profile\n");
+    WriteMetadata(mapPath, "requiredFeatures=chaos.ui.compatibility_preview_status\n");
 
     const auto result = chaos::EvaluateContentCompatibility(mapPath, RulesProfile::RttrCompatible);
 
     BOOST_TEST(!result.decision.allowed);
-    BOOST_TEST(result.decision.reasonKey == "chaos.compatibility.rules_profile_mismatch");
+    BOOST_TEST(result.decision.reasonKey == "chaos.compatibility.missing_required_features");
+    BOOST_TEST_REQUIRE(result.decision.missingRequiredFeatures.size() == 1u);
+    BOOST_TEST(static_cast<int>(result.decision.missingRequiredFeatures[0])
+               == static_cast<int>(chaos::FeatureId::CompatibilityPreviewStatus));
     BOOST_TEST(result.userMessage.find("Chaos Edition cannot start") != std::string::npos);
-    BOOST_TEST(result.userMessage.find("different rules profile") != std::string::npos);
+    BOOST_TEST(result.userMessage.find("chaos.ui.compatibility_preview_status") != std::string::npos);
 }
 
 BOOST_AUTO_TEST_CASE(InvalidMetadataFailsClosedWithoutCrashing)

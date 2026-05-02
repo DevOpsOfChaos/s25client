@@ -17,7 +17,8 @@ enum class FeatureId
     ExtendedContent,
     ExtendedAi,
     ExtendedVisuals,
-    MapMetadataV1
+    MapMetadataV1,
+    CompatibilityPreviewStatus
 };
 
 using FeatureList = std::vector<FeatureId>;
@@ -40,6 +41,7 @@ inline const char* ToStableFeatureKey(const FeatureId featureId)
         case FeatureId::ExtendedAi: return "chaos.extended_ai";
         case FeatureId::ExtendedVisuals: return "chaos.extended_visuals";
         case FeatureId::MapMetadataV1: return "chaos.map_metadata_v1";
+        case FeatureId::CompatibilityPreviewStatus: return "chaos.ui.compatibility_preview_status";
     }
     return "chaos.unknown";
 }
@@ -54,7 +56,7 @@ inline SupportedFeatures GetSupportedFeatures(const RulesProfile rulesProfile)
     switch(rulesProfile)
     {
         case RulesProfile::RttrCompatible: return {};
-        case RulesProfile::Chaos: return {FeatureId::RulesProfile};
+        case RulesProfile::Chaos: return {FeatureId::RulesProfile, FeatureId::CompatibilityPreviewStatus};
     }
     return {};
 }

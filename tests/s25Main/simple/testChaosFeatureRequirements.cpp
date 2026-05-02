@@ -49,16 +49,19 @@ BOOST_AUTO_TEST_CASE(FeatureIdsHaveStableKeys)
     BOOST_TEST(chaos::ToStableFeatureKey(chaos::FeatureId::ExtendedAi) == "chaos.extended_ai");
     BOOST_TEST(chaos::ToStableFeatureKey(chaos::FeatureId::ExtendedVisuals) == "chaos.extended_visuals");
     BOOST_TEST(chaos::ToStableFeatureKey(chaos::FeatureId::MapMetadataV1) == "chaos.map_metadata_v1");
+    BOOST_TEST(chaos::ToStableFeatureKey(chaos::FeatureId::CompatibilityPreviewStatus)
+               == "chaos.ui.compatibility_preview_status");
 }
 
-BOOST_AUTO_TEST_CASE(CurrentSupportedFeaturesAreMinimal)
+BOOST_AUTO_TEST_CASE(CurrentSupportedFeaturesAreChaosOnlyAndMinimal)
 {
     const auto rttrCompatibleFeatures = chaos::GetSupportedFeatures(RulesProfile::RttrCompatible);
     const auto chaosFeatures = chaos::GetSupportedFeatures(RulesProfile::Chaos);
 
     BOOST_TEST(rttrCompatibleFeatures.empty());
-    BOOST_TEST_REQUIRE(chaosFeatures.size() == 1u);
+    BOOST_TEST_REQUIRE(chaosFeatures.size() == 2u);
     BOOST_TEST(static_cast<int>(chaosFeatures[0]) == static_cast<int>(chaos::FeatureId::RulesProfile));
+    BOOST_TEST(static_cast<int>(chaosFeatures[1]) == static_cast<int>(chaos::FeatureId::CompatibilityPreviewStatus));
 }
 
 BOOST_AUTO_TEST_CASE(MissingFeatureRequirementsAreDeterministicAndUnique)
@@ -95,6 +98,18 @@ BOOST_AUTO_TEST_CASE(SupportedRequirementsAreAllowed)
     BOOST_TEST(decision.reasonKey == "chaos.compatibility.allowed");
 }
 
+BOOST_AUTO_TEST_CASE(CompatibilityPreviewStatusRequirementIsAllowedForChaosProfile)
+{
+    const chaos::RequiredFeatures requiredFeatures = {chaos::FeatureId::CompatibilityPreviewStatus};
+
+    const auto decision = chaos::EvaluateCompatibility(
+      RulesProfile::Chaos, chaos::GetSupportedFeatures(RulesProfile::Chaos), requiredFeatures);
+
+    BOOST_TEST(decision.allowed);
+    BOOST_TEST(decision.missingRequiredFeatures.empty());
+    BOOST_TEST(decision.reasonKey == "chaos.compatibility.allowed");
+}
+
 BOOST_AUTO_TEST_CASE(MissingRequirementsAreBlocked)
 {
     const chaos::RequiredFeatures requiredFeatures = {chaos::FeatureId::RulesProfile};
@@ -110,8 +125,8 @@ BOOST_AUTO_TEST_CASE(MissingRequirementsAreBlocked)
 
 BOOST_AUTO_TEST_CASE(RttrCompatibleProfileDoesNotSilentlySatisfyChaosRequirements)
 {
-    const chaos::RequiredFeatures requiredFeatures = {chaos::FeatureId::RulesProfile};
-    const chaos::SupportedFeatures supportedFeatures = {chaos::FeatureId::RulesProfile};
+    const chaos::RequiredFeatures requiredFeatures = {chaos::FeatureId::CompatibilityPreviewStatus};
+    const chaos::SupportedFeatures supportedFeatures = {chaos::FeatureId::CompatibilityPreviewStatus};
 
     const auto decision =
       chaos::EvaluateCompatibility(RulesProfile::RttrCompatible, supportedFeatures, requiredFeatures);
@@ -119,7 +134,7 @@ BOOST_AUTO_TEST_CASE(RttrCompatibleProfileDoesNotSilentlySatisfyChaosRequirement
     BOOST_TEST(!decision.allowed);
     BOOST_TEST_REQUIRE(decision.missingRequiredFeatures.size() == 1u);
     BOOST_TEST(static_cast<int>(decision.missingRequiredFeatures[0])
-               == static_cast<int>(chaos::FeatureId::RulesProfile));
+               == static_cast<int>(chaos::FeatureId::CompatibilityPreviewStatus));
 }
 
 BOOST_AUTO_TEST_CASE(CompatibilityDecisionMissingFeaturesAreDeterministicAndUnique)

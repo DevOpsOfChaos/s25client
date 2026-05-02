@@ -89,6 +89,8 @@ boost::optional<FeatureId> ParseFeatureId(const std::string& value)
         return FeatureId::ExtendedVisuals;
     if(value == ToStableFeatureKey(FeatureId::MapMetadataV1))
         return FeatureId::MapMetadataV1;
+    if(value == ToStableFeatureKey(FeatureId::CompatibilityPreviewStatus))
+        return FeatureId::CompatibilityPreviewStatus;
     return boost::none;
 }
 
