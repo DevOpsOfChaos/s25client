@@ -8,6 +8,9 @@
 
 namespace rttr::version {
 std::string GetTitle();
+std::string GetEditionName();
+std::string GetEditionAttribution();
+std::string GetEditionInternalPrefix();
 std::string GetVersion();
 std::string GetBuildDate();
 std::string GetRevision();

@@ -12,6 +12,21 @@ std::string GetTitle()
     return "Return To The Roots";
 }
 
+std::string GetEditionName()
+{
+    return "Chaos Edition";
+}
+
+std::string GetEditionAttribution()
+{
+    return "unofficial fork based on Return to the Roots";
+}
+
+std::string GetEditionInternalPrefix()
+{
+    return "chaos";
+}
+
 std::string GetVersion()
 {
     return rttr::VERSION;
