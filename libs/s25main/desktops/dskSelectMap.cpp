@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskSelectMap.h"
+#include "ChaosCompatibilityPreview.h"
 #include "ListDir.h"
 #include "Loader.h"
 #include "RttrConfig.h"
 #include "RttrLobbyClient.hpp"
+#include "Settings.h"
 #include "WindowManager.h"
 #include "commonDefines.h"
 #include "controls/ctrlButton.h"
@@ -47,6 +49,27 @@
 
 namespace bfs = boost::filesystem;
 constexpr unsigned ID_msgBoxError = 0;
+namespace {
+enum
+{
+    ID_tblMaps = 1,
+    ID_txtMapName = 12,
+    ID_txtMapPath,
+    ID_txtChaosCompatibility
+};
+
+unsigned GetCompatibilityPreviewColor(const chaos::CompatibilityPreviewStatus status)
+{
+    switch(status)
+    {
+        case chaos::CompatibilityPreviewStatus::Neutral: return COLOR_YELLOW;
+        case chaos::CompatibilityPreviewStatus::Compatible: return COLOR_GREEN;
+        case chaos::CompatibilityPreviewStatus::Invalid:
+        case chaos::CompatibilityPreviewStatus::Incompatible: return COLOR_RED;
+    }
+    return COLOR_RED;
+}
+} // namespace
 
 /**
  *  Konstruktor von @p dskSelectMap.
@@ -124,8 +147,9 @@ dskSelectMap::dskSelectMap(CreateServerInfo csi)
     optiongroup->AddTextButton(8, curBtPos, catBtSize, TextureColor::Grey, _("Played"), NormalFont);
 
     AddPreviewMinimap(11, DrawPoint(110, 445), Extent(140, 140), nullptr);
-    AddText(12, DrawPoint(260, 470), _("Map: "), COLOR_YELLOW, FontStyle::LEFT, NormalFont);
-    AddText(13, DrawPoint(260, 490), _("Mapfile: "), COLOR_YELLOW, FontStyle::LEFT, NormalFont);
+    AddText(ID_txtMapName, DrawPoint(260, 470), _("Map: "), COLOR_YELLOW, FontStyle::LEFT, NormalFont);
+    AddText(ID_txtMapPath, DrawPoint(260, 490), _("Mapfile: "), COLOR_YELLOW, FontStyle::LEFT, NormalFont);
+    AddText(ID_txtChaosCompatibility, DrawPoint(260, 510), "", COLOR_YELLOW, FontStyle::LEFT, NormalFont);
 
     // "Eigene" auswählen
     optiongroup->SetSelection(5, true);
@@ -201,16 +225,18 @@ static std::unique_ptr<libsiedler2::ArchivItem_Map> loadAndVerifyMap(const std::
  */
 void dskSelectMap::Msg_TableSelectItem(const unsigned ctrl_id, const boost::optional<unsigned>& selection)
 {
-    if(ctrl_id != 1)
+    if(ctrl_id != ID_tblMaps)
         return;
 
     ctrlPreviewMinimap& preview = *GetCtrl<ctrlPreviewMinimap>(11);
-    ctrlText& txtMapName = *GetCtrl<ctrlText>(12);
-    ctrlText& txtMapPath = *GetCtrl<ctrlText>(13);
+    ctrlText& txtMapName = *GetCtrl<ctrlText>(ID_txtMapName);
+    ctrlText& txtMapPath = *GetCtrl<ctrlText>(ID_txtMapPath);
+    ctrlText& txtChaosCompatibility = *GetCtrl<ctrlText>(ID_txtChaosCompatibility);
     ctrlButton& btContinue = *GetCtrl<ctrlButton>(5);
     preview.SetMap(nullptr);
     txtMapName.SetText("");
     txtMapPath.SetText("");
+    txtChaosCompatibility.SetText("");
     btContinue.SetEnabled(false);
 
     // is the selection valid?
@@ -227,6 +253,10 @@ void dskSelectMap::Msg_TableSelectItem(const unsigned ctrl_id, const boost::opti
                 preview.SetMap(map.get());
                 txtMapName.SetText(s25util::ansiToUTF8(map->getHeader().getName()));
                 txtMapPath.SetText(path);
+                const chaos::CompatibilityPreview compatibilityPreview = chaos::BuildCompatibilityPreview(
+                  chaos::EvaluateContentCompatibility(path, SETTINGS.chaos.rulesProfile));
+                txtChaosCompatibility.SetText(compatibilityPreview.text);
+                txtChaosCompatibility.SetTextColor(GetCompatibilityPreviewColor(compatibilityPreview.status));
                 btContinue.SetEnabled(true);
             } catch(const std::runtime_error& e)
             {
@@ -242,6 +272,7 @@ void dskSelectMap::Msg_TableSelectItem(const unsigned ctrl_id, const boost::opti
     const unsigned txtXPos = preview.GetPos().x + preview.GetSize().x + 10;
     txtMapName.SetPos(DrawPoint(txtXPos, txtMapName.GetPos().y));
     txtMapPath.SetPos(DrawPoint(txtXPos, txtMapPath.GetPos().y));
+    txtChaosCompatibility.SetPos(DrawPoint(txtXPos, txtChaosCompatibility.GetPos().y));
 }
 
 void dskSelectMap::GoBack() const

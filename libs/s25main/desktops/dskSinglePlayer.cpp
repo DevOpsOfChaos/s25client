@@ -3,13 +3,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskSinglePlayer.h"
+#include "ChaosCompatibilityPreview.h"
 #include "ListDir.h"
 #include "Loader.h"
 #include "RttrConfig.h"
 #include "Savegame.h"
 #include "Settings.h"
 #include "WindowManager.h"
+#include "commonDefines.h"
 #include "controls/ctrlButton.h"
+#include "controls/ctrlText.h"
 #include "dskCampaignSelection.h"
 #include "dskMainMenu.h"
 #include "dskSelectMap.h"
@@ -27,6 +30,48 @@ static CreateServerInfo createLocalGameInfo(const std::string& name)
 {
     return CreateServerInfo(ServerType::Local, SETTINGS.server.localPort, name);
 }
+
+namespace {
+enum
+{
+    ID_txtResumeCompatibility = 12
+};
+
+unsigned GetCompatibilityPreviewColor(const chaos::CompatibilityPreviewStatus status)
+{
+    switch(status)
+    {
+        case chaos::CompatibilityPreviewStatus::Neutral: return COLOR_YELLOW;
+        case chaos::CompatibilityPreviewStatus::Compatible: return COLOR_GREEN;
+        case chaos::CompatibilityPreviewStatus::Invalid:
+        case chaos::CompatibilityPreviewStatus::Incompatible: return COLOR_RED;
+    }
+    return COLOR_RED;
+}
+
+bfs::path FindMostRecentSavePath()
+{
+    const std::vector<bfs::path> savFiles = ListDir(RTTRCONFIG.ExpandPath(s25::folders::save), "sav");
+
+    bfs::path mostRecentFilepath;
+    s25util::time64_t recent = 0;
+    for(const auto& savFile : savFiles)
+    {
+        Savegame save;
+
+        if(!save.Load(savFile, SaveGameDataToLoad::Header))
+            continue;
+
+        if(save.GetSaveTime() > recent)
+        {
+            recent = save.GetSaveTime();
+            mostRecentFilepath = savFile;
+        }
+    }
+
+    return mostRecentFilepath;
+}
+} // namespace
 
 /** @class dskSinglePlayer
  *
@@ -49,6 +94,15 @@ dskSinglePlayer::dskSinglePlayer()
     AddTextButton(8, DrawPoint(115, 390), Extent(220, 22), TextureColor::Red1, _("Back"), NormalFont);
 
     AddImage(11, DrawPoint(20, 20), LOADER.GetImageN("logo", 0));
+
+    if(const bfs::path mostRecentFilepath = FindMostRecentSavePath(); !mostRecentFilepath.empty())
+    {
+        const chaos::CompatibilityPreview compatibilityPreview = chaos::BuildCompatibilityPreview(
+          chaos::EvaluateContentCompatibility(mostRecentFilepath, SETTINGS.chaos.rulesProfile));
+        AddText(ID_txtResumeCompatibility, DrawPoint(345, 184), compatibilityPreview.text,
+                GetCompatibilityPreviewColor(compatibilityPreview.status), FontStyle::LEFT, SmallFont)
+          ->setMaxWidth(420);
+    }
 }
 
 void dskSinglePlayer::Msg_ButtonClick(const unsigned ctrl_id)
@@ -57,26 +111,9 @@ void dskSinglePlayer::Msg_ButtonClick(const unsigned ctrl_id)
     {
         case 3: // "Letztes Spiel fortsetzen"
         {
-            const std::vector<bfs::path> savFiles = ListDir(RTTRCONFIG.ExpandPath(s25::folders::save), "sav");
+            const bfs::path mostRecentFilepath = FindMostRecentSavePath();
 
-            bfs::path mostRecentFilepath;
-            s25util::time64_t recent = 0;
-            for(const auto& savFile : savFiles)
-            {
-                Savegame save;
-
-                // Datei öffnen
-                if(!save.Load(savFile, SaveGameDataToLoad::Header))
-                    continue;
-
-                if(save.GetSaveTime() > recent)
-                {
-                    recent = save.GetSaveTime();
-                    mostRecentFilepath = savFile;
-                }
-            }
-
-            if(recent != 0)
+            if(!mostRecentFilepath.empty())
             {
                 // Dateiname noch rausextrahieren aus dem Pfad
                 if(!mostRecentFilepath.has_filename())

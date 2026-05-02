@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskCampaignMissionSelection.h"
+#include "ChaosCompatibilityPreview.h"
 #include "Loader.h"
+#include "Settings.h"
 #include "WindowManager.h"
 #include "commonDefines.h"
 #include "controls/ctrlGroup.h"
@@ -34,6 +36,7 @@ enum
     ID_btBack,
     ID_btStart,
     ID_MapSelection,
+    ID_txtChaosCompatibility,
     // IDs used if map selection is not available
     ID_btFirstPage,
     ID_btNextPage,
@@ -50,6 +53,24 @@ constexpr auto distanceBetweenElementsY = 10;
 constexpr auto distanceBetweenMissionButtonsY = 10;
 constexpr auto buttonHeight = 20;
 constexpr auto spacingBetweenButtons = 2;
+
+unsigned GetCompatibilityPreviewColor(const chaos::CompatibilityPreviewStatus status)
+{
+    switch(status)
+    {
+        case chaos::CompatibilityPreviewStatus::Neutral: return COLOR_YELLOW;
+        case chaos::CompatibilityPreviewStatus::Compatible: return COLOR_GREEN;
+        case chaos::CompatibilityPreviewStatus::Invalid:
+        case chaos::CompatibilityPreviewStatus::Incompatible: return COLOR_RED;
+    }
+    return COLOR_RED;
+}
+
+chaos::CompatibilityPreview GetCompatibilityPreview(const bfs::path& mapFilePath)
+{
+    return chaos::BuildCompatibilityPreview(
+      chaos::EvaluateContentCompatibility(mapFilePath, SETTINGS.chaos.rulesProfile));
+}
 
 int getStartOffsetMissionButtonsY()
 {
@@ -71,6 +92,7 @@ dskCampaignMissionSelection::dskCampaignMissionSelection(CreateServerInfo csi, c
           AddTextButton(ID_btStart, DrawPoint(300, 530), buttonSize, TextureColor::Red1, _("Start"), NormalFont);
         AddTextButton(ID_btBack, DrawPoint(300, 530 + buttonSize.y + spacingBetweenButtons), buttonSize,
                       TextureColor::Red1, _("Back"), NormalFont);
+        AddText(ID_txtChaosCompatibility, DrawPoint(400, 512), "", COLOR_YELLOW, FontStyle::CENTER, NormalFont);
 
         auto* mapSelection =
           AddMapSelection(ID_MapSelection, DrawPoint(0, 0), Extent(800, 508), *campaign_->selectionMapData);
@@ -128,8 +150,8 @@ void dskCampaignMissionSelection::UpdateMissionPage()
         // Create group (once)
         group = AddGroup(grpIdCurrentPage);
 
-        constexpr Extent missionBtSize(300, buttonHeight);
-        DrawPoint curBtPos(250, getStartOffsetMissionButtonsY());
+        constexpr Extent missionBtSize(560, buttonHeight);
+        DrawPoint curBtPos(120, getStartOffsetMissionButtonsY());
         for(const auto i : helpers::range(missionsPerPage_))
         {
             const unsigned missionIndex = currentPage_ * missionsPerPage_ + i;
@@ -147,8 +169,9 @@ void dskCampaignMissionSelection::UpdateMissionPage()
 
             const auto& header = checkedCast<const libsiedler2::ArchivItem_Map*>(map[0])->getHeader();
 
-            group->AddTextButton(i, curBtPos, missionBtSize, TextureColor::Grey, s25util::ansiToUTF8(header.getName()),
-                                 NormalFont);
+            const chaos::CompatibilityPreview compatibilityPreview = GetCompatibilityPreview(mapFilePath);
+            const std::string missionLabel = s25util::ansiToUTF8(header.getName()) + " - " + compatibilityPreview.text;
+            group->AddTextButton(i, curBtPos, missionBtSize, TextureColor::Grey, missionLabel, NormalFont);
             curBtPos.y += missionBtSize.y + distanceBetweenMissionButtonsY;
         }
     }
@@ -202,7 +225,17 @@ void dskCampaignMissionSelection::Msg_ButtonClick(unsigned ctrl_id)
     {
         auto* btStart = GetCtrl<ctrlButton>(ID_btStart);
         const auto* mapSelection = GetCtrl<ctrlMapSelection>(ID_MapSelection);
-        btStart->SetEnabled(static_cast<bool>(mapSelection->getSelection()));
+        const auto selectedMission = mapSelection->getSelection();
+        btStart->SetEnabled(static_cast<bool>(selectedMission));
+        auto* compatibilityText = GetCtrl<ctrlText>(ID_txtChaosCompatibility);
+        if(selectedMission)
+        {
+            const chaos::CompatibilityPreview compatibilityPreview =
+              GetCompatibilityPreview(campaign_->getMapFilePath(*selectedMission));
+            compatibilityText->SetText(compatibilityPreview.text);
+            compatibilityText->SetTextColor(GetCompatibilityPreviewColor(compatibilityPreview.status));
+        } else
+            compatibilityText->SetText("");
     } else if(ctrl_id >= ID_btFirstPage && ctrl_id <= ID_btLastPage)
     {
         switch(ctrl_id)

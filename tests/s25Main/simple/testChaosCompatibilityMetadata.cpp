@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ChaosCompatibilityMetadata.h"
+#include "ChaosCompatibilityPreview.h"
 
 #include "rttr/test/TmpFolder.hpp"
 
@@ -110,6 +111,69 @@ BOOST_AUTO_TEST_CASE(ExistingSaveWithoutMetadataIsUnaffectedAtHelperLevel)
 
     BOOST_TEST(result.decision.allowed);
     BOOST_TEST(result.metadataPath.filename().string() == "existing.sav.chaos");
+}
+
+BOOST_AUTO_TEST_CASE(MissingMetadataBuildsNeutralPreviewStatus)
+{
+    const rttr::test::TmpFolder tmp;
+    const boost::filesystem::path mapPath = tmp / "plain.swd";
+
+    const auto preview =
+      chaos::BuildCompatibilityPreview(chaos::EvaluateContentCompatibility(mapPath, RulesProfile::RttrCompatible));
+
+    BOOST_TEST(static_cast<int>(preview.status) == static_cast<int>(chaos::CompatibilityPreviewStatus::Neutral));
+    BOOST_TEST(preview.text == "RTTR-compatible / no Chaos metadata");
+}
+
+BOOST_AUTO_TEST_CASE(ValidCompatibleMetadataBuildsChaosCompatiblePreviewStatus)
+{
+    const rttr::test::TmpFolder tmp;
+    const boost::filesystem::path mapPath = tmp / "chaos.swd";
+    WriteMetadata(mapPath, "rulesProfile=chaos\nrequiredFeatures=chaos.rules_profile\n");
+
+    const auto preview =
+      chaos::BuildCompatibilityPreview(chaos::EvaluateContentCompatibility(mapPath, RulesProfile::Chaos));
+
+    BOOST_TEST(static_cast<int>(preview.status) == static_cast<int>(chaos::CompatibilityPreviewStatus::Compatible));
+    BOOST_TEST(preview.text == "Chaos Edition compatible");
+}
+
+BOOST_AUTO_TEST_CASE(InvalidMetadataBuildsUserFacingPreviewStatusWithoutReasonKeys)
+{
+    const rttr::test::TmpFolder tmp;
+    const boost::filesystem::path mapPath = tmp / "broken.swd";
+    WriteMetadata(mapPath, "requiredFeatures=chaos.not_real\n");
+
+    const auto preview =
+      chaos::BuildCompatibilityPreview(chaos::EvaluateContentCompatibility(mapPath, RulesProfile::Chaos));
+
+    BOOST_TEST(static_cast<int>(preview.status) == static_cast<int>(chaos::CompatibilityPreviewStatus::Invalid));
+    BOOST_TEST(preview.text == "Invalid Chaos metadata");
+    BOOST_TEST(preview.text.find("chaos.compatibility") == std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(IncompatibleMetadataBuildsUserFacingPreviewStatusWithoutReasonKeys)
+{
+    const rttr::test::TmpFolder tmp;
+    const boost::filesystem::path rulesProfilePath = tmp / "profile.swd";
+    const boost::filesystem::path missingFeaturePath = tmp / "features.swd";
+    WriteMetadata(rulesProfilePath, "rulesProfile=chaos\nrequiredFeatures=chaos.rules_profile\n");
+    WriteMetadata(missingFeaturePath, "rulesProfile=chaos\nrequiredFeatures=chaos.rules_profile, chaos.extended_ai\n");
+
+    const auto rulesProfilePreview = chaos::BuildCompatibilityPreview(
+      chaos::EvaluateContentCompatibility(rulesProfilePath, RulesProfile::RttrCompatible));
+    const auto missingFeaturePreview =
+      chaos::BuildCompatibilityPreview(chaos::EvaluateContentCompatibility(missingFeaturePath, RulesProfile::Chaos));
+
+    BOOST_TEST(static_cast<int>(rulesProfilePreview.status)
+               == static_cast<int>(chaos::CompatibilityPreviewStatus::Incompatible));
+    BOOST_TEST(rulesProfilePreview.text == "Incompatible: requires a different rules profile");
+    BOOST_TEST(rulesProfilePreview.text.find("chaos.compatibility") == std::string::npos);
+
+    BOOST_TEST(static_cast<int>(missingFeaturePreview.status)
+               == static_cast<int>(chaos::CompatibilityPreviewStatus::Incompatible));
+    BOOST_TEST(missingFeaturePreview.text == "Incompatible: requires unsupported Chaos compatibility features");
+    BOOST_TEST(missingFeaturePreview.text.find("chaos.compatibility") == std::string::npos);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

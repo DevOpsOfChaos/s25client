@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwSave.h"
+#include "ChaosCompatibilityPreview.h"
 #include "ListDir.h"
 #include "Loader.h"
 #include "RttrConfig.h"
@@ -37,10 +38,23 @@ enum
     ID_txtAutoSave,
     ID_cbAutoSaveInterval,
     ID_txtSaveFolder,
+    ID_txtChaosCompatibility,
 };
 
 using namespace std::chrono_literals;
 constexpr std::array AUTO_SAVE_INTERVALS{1min, 5min, 10min, 15min, 30min, 60min, 90min};
+
+unsigned GetCompatibilityPreviewColor(const chaos::CompatibilityPreviewStatus status)
+{
+    switch(status)
+    {
+        case chaos::CompatibilityPreviewStatus::Neutral: return COLOR_YELLOW;
+        case chaos::CompatibilityPreviewStatus::Compatible: return COLOR_GREEN;
+        case chaos::CompatibilityPreviewStatus::Invalid:
+        case chaos::CompatibilityPreviewStatus::Incompatible: return COLOR_RED;
+    }
+    return COLOR_RED;
+}
 } // namespace
 
 iwSaveLoad::iwSaveLoad(const std::string& window_title, ITexture* btImg, const unsigned addHeight)
@@ -60,6 +74,8 @@ iwSaveLoad::iwSaveLoad(const std::string& window_title, ITexture* btImg, const u
       ->setMaxWidth(510);
     AddEdit(ID_edtFilename, DrawPoint(20, 350), Extent(510, 22), TextureColor::Green2, NormalFont);
     AddImageButton(ID_btSaveOrLoad, DrawPoint(540, 341), Extent(40, 40), TextureColor::Green2, btImg);
+    AddText(ID_txtChaosCompatibility, DrawPoint(20, 378), "", COLOR_YELLOW, FontStyle::LEFT, SmallFont)
+      ->setMaxWidth(560);
     // Initially fill the table
     RefreshTable();
 }
@@ -80,6 +96,19 @@ void iwSaveLoad::Msg_TableSelectItem(const unsigned /*ctrl_id*/, const boost::op
     // On selecting a table entry put the filename into the edit control
     GetCtrl<ctrlEdit>(ID_edtFilename)
       ->SetText(selection ? GetCtrl<ctrlTable>(ID_tblSaveGames)->GetItemText(*selection, 0) : "");
+
+    auto* compatibilityText = GetCtrl<ctrlText>(ID_txtChaosCompatibility);
+    if(!selection)
+    {
+        compatibilityText->SetText("");
+        return;
+    }
+
+    const std::string savePath = GetCtrl<ctrlTable>(ID_tblSaveGames)->GetItemText(*selection, 4);
+    const chaos::CompatibilityPreview compatibilityPreview =
+      chaos::BuildCompatibilityPreview(chaos::EvaluateContentCompatibility(savePath, SETTINGS.chaos.rulesProfile));
+    compatibilityText->SetText(compatibilityPreview.text);
+    compatibilityText->SetTextColor(GetCompatibilityPreviewColor(compatibilityPreview.status));
 }
 
 void iwSaveLoad::RefreshTable()
@@ -130,7 +159,7 @@ void iwSave::SaveLoad()
 iwSave::iwSave() : iwSaveLoad(_("Save game!"), LOADER.GetTextureN("io", 47), 30)
 {
     const auto* fileNameEdit = GetCtrl<ctrlEdit>(ID_edtFilename);
-    DrawPoint pos(GetSize().x / 2, fileNameEdit->GetPos().y + fileNameEdit->GetSize().y + 10);
+    DrawPoint pos(GetSize().x / 2, fileNameEdit->GetPos().y + fileNameEdit->GetSize().y + 34);
 
     ctrlComboBox* combo =
       AddComboBox(ID_cbAutoSaveInterval, pos, Extent(130, 22), TextureColor::Green2, NormalFont, 100);
