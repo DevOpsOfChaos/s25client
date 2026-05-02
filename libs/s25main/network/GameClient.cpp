@@ -140,6 +140,7 @@ bool GameClient::Connect(const std::string& server, const std::string& password,
 
 bool GameClient::HostGame(const CreateServerInfo& csi, const MapDescription& map)
 {
+    lastHostError_.clear();
     std::string hostPw = createRandString(20);
     // Copy the map and lua to the played map folders to avoid having to transmit it from the (local) server
     const auto playedMapPath = RTTRCONFIG.ExpandPath(s25::folders::mapsPlayed) / map.map_path.filename();
@@ -149,7 +150,17 @@ bool GameClient::HostGame(const CreateServerInfo& csi, const MapDescription& map
         const auto playedMapLuaPath = RTTRCONFIG.ExpandPath(s25::folders::mapsPlayed) / map.lua_path->filename();
         copyFileIfPathDifferent(*map.lua_path, playedMapLuaPath);
     }
-    return GAMESERVER.Start(csi, map, hostPw) && Connect("localhost", hostPw, csi.type, csi.port, true, csi.ipv6);
+    if(!GAMESERVER.Start(csi, map, hostPw))
+    {
+        lastHostError_ = GAMESERVER.GetLastStartError();
+        return false;
+    }
+    if(!Connect("localhost", hostPw, csi.type, csi.port, true, csi.ipv6))
+    {
+        lastHostError_ = _("Hosting of game not possible");
+        return false;
+    }
+    return true;
 }
 
 /**

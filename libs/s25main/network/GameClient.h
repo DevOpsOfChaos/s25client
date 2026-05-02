@@ -83,6 +83,7 @@ public:
 
     /// Start the server and connect to it
     bool HostGame(const CreateServerInfo& csi, const MapDescription& map);
+    const std::string& GetLastHostError() const { return lastHostError_; }
     void Run();
     void Stop();
 
@@ -318,6 +319,7 @@ private:
 
     /// Configured players for an AI battle.
     std::vector<AI::Info> aiBattlePlayers_;
+    std::string lastHostError_;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

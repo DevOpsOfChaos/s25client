@@ -113,6 +113,7 @@ GameServer::~GameServer()
 bool GameServer::Start(const CreateServerInfo& csi, const MapDescription& map, const std::string& hostPw)
 {
     Stop();
+    lastStartError_.clear();
 
     // Name, Password und Kartenname kopieren
     config.gamename = csi.gameName;
@@ -131,6 +132,7 @@ bool GameServer::Start(const CreateServerInfo& csi, const MapDescription& map, c
         LOG.write("GameServer::Start: ERROR: Content %1% is not compatible with the selected rules profile: %2% "
                   "(metadata: %3%)\n")
           % mapinfo.filepath % compatibility.message % compatibility.metadataPath;
+        lastStartError_ = compatibility.userMessage.empty() ? compatibility.message : compatibility.userMessage;
         return false;
     }
 

@@ -19,6 +19,7 @@
 #include "helpers/make_array.h"
 #include "helpers/toString.h"
 #include "iwConnecting.h"
+#include "iwMsgbox.h"
 #include "network/GameClient.h"
 #include "gameData/GameConsts.h"
 #include "gameData/const_gui_ids.h"
@@ -192,10 +193,19 @@ void iwLoad::SaveLoad()
         WINDOWMANAGER.Show(std::make_unique<iwConnecting>(csi.type, std::move(lobbyClient)));
     } else
     {
+        const std::string error = GAMECLIENT.GetLastHostError().empty() ? _("The specified file couldn't be loaded!") :
+                                                                          GAMECLIENT.GetLastHostError();
         if(LOBBYCLIENT.IsLoggedIn())
+        {
             WINDOWMANAGER.Switch(std::make_unique<dskLobby>());
-        else
+            WINDOWMANAGER.ShowAfterSwitch(
+              std::make_unique<iwMsgbox>(_("Error"), error, nullptr, MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
+        } else
+        {
             Close();
+            WINDOWMANAGER.Show(
+              std::make_unique<iwMsgbox>(_("Error"), error, nullptr, MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
+        }
     }
 }
 

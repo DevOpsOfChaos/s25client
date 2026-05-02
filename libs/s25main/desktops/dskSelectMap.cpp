@@ -351,8 +351,13 @@ void dskSelectMap::StartServer()
 
         // Server starten
         if(!GAMECLIENT.HostGame(csi, {mapPath, MapType::OldMap}))
+        {
+            const std::string error =
+              GAMECLIENT.GetLastHostError().empty() ? _("Hosting of game not possible") : GAMECLIENT.GetLastHostError();
             GoBack();
-        else
+            WINDOWMANAGER.ShowAfterSwitch(std::make_unique<iwMsgbox>(_("Error"), error, nullptr, MsgboxButton::Ok,
+                                                                     MsgboxIcon::ExclamationRed, ID_msgBoxError));
+        } else
         {
             std::unique_ptr<ILobbyClient> lobbyClient;
             if(csi.type == ServerType::Lobby)

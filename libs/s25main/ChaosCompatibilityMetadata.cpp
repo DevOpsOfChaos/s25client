@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ChaosCompatibilityMetadata.h"
+#include "RTTR_Version.h"
 
 #include <boost/algorithm/string/join.hpp>
 #include <boost/filesystem.hpp>
@@ -54,6 +55,8 @@ namespace {
             featureKeys.emplace_back(ToStableFeatureKey(featureId));
         return boost::algorithm::join(featureKeys, ", ");
     }
+
+    std::string GetProductName() { return rttr::version::GetEditionName(); }
 
 } // namespace
 
@@ -154,6 +157,7 @@ ContentCompatibilityResult EvaluateContentCompatibility(const bfs::path& content
     }
 
     result.message = BuildCompatibilityMessage(result);
+    result.userMessage = BuildUserFacingCompatibilityError(result);
     return result;
 }
 
@@ -174,6 +178,35 @@ std::string BuildCompatibilityMessage(const ContentCompatibilityResult& result)
             return "Chaos compatibility metadata requirements are not satisfied.";
     }
     return "Unknown Chaos compatibility metadata state.";
+}
+
+std::string BuildUserFacingCompatibilityError(const ContentCompatibilityResult& result)
+{
+    if(result.decision.allowed)
+        return {};
+
+    const std::string productName = GetProductName();
+    switch(result.metadataResult.status)
+    {
+        case MetadataReadStatus::Missing: return {};
+        case MetadataReadStatus::Invalid:
+            return productName
+                   + " cannot start this map or save because its Chaos compatibility metadata is invalid. Check the "
+                     ".chaos sidecar file next to the content.";
+        case MetadataReadStatus::Valid:
+            if(result.decision.reasonKey == std::string("chaos.compatibility.rules_profile_mismatch"))
+                return productName + " cannot start this map or save because it requires a different rules profile.";
+            if(!result.decision.missingRequiredFeatures.empty())
+                return productName
+                       + " cannot start this map or save because it requires unsupported Chaos compatibility features: "
+                       + JoinMissingFeatures(result.decision.missingRequiredFeatures) + ".";
+            return productName
+                   + " cannot start this map or save because its Chaos compatibility requirements are not "
+                     "satisfied.";
+    }
+    return productName
+           + " cannot start this map or save because its Chaos compatibility requirements are not "
+             "satisfied.";
 }
 
 } // namespace chaos

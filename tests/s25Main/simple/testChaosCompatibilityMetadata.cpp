@@ -31,6 +31,7 @@ BOOST_AUTO_TEST_CASE(MissingMetadataMeansNoRequirements)
     BOOST_TEST(static_cast<int>(result.metadataResult.status) == static_cast<int>(chaos::MetadataReadStatus::Missing));
     BOOST_TEST(result.decision.allowed);
     BOOST_TEST(result.decision.reasonKey == "chaos.compatibility.allowed");
+    BOOST_TEST(result.userMessage.empty());
 }
 
 BOOST_AUTO_TEST_CASE(ValidMetadataWithSupportedFeaturesIsCompatible)
@@ -62,6 +63,9 @@ BOOST_AUTO_TEST_CASE(ValidMetadataWithMissingFeaturesIsBlocked)
     BOOST_TEST_REQUIRE(result.decision.missingRequiredFeatures.size() == 1u);
     BOOST_TEST(static_cast<int>(result.decision.missingRequiredFeatures[0])
                == static_cast<int>(chaos::FeatureId::ExtendedAi));
+    BOOST_TEST(result.message.find("chaos.extended_ai") != std::string::npos);
+    BOOST_TEST(result.userMessage.find("Chaos Edition cannot start") != std::string::npos);
+    BOOST_TEST(result.userMessage.find("chaos.compatibility") == std::string::npos);
 }
 
 BOOST_AUTO_TEST_CASE(RttrCompatibleProfileBlocksChaosOnlyRequirements)
@@ -74,6 +78,8 @@ BOOST_AUTO_TEST_CASE(RttrCompatibleProfileBlocksChaosOnlyRequirements)
 
     BOOST_TEST(!result.decision.allowed);
     BOOST_TEST(result.decision.reasonKey == "chaos.compatibility.rules_profile_mismatch");
+    BOOST_TEST(result.userMessage.find("Chaos Edition cannot start") != std::string::npos);
+    BOOST_TEST(result.userMessage.find("different rules profile") != std::string::npos);
 }
 
 BOOST_AUTO_TEST_CASE(InvalidMetadataFailsClosedWithoutCrashing)
@@ -87,7 +93,12 @@ BOOST_AUTO_TEST_CASE(InvalidMetadataFailsClosedWithoutCrashing)
     BOOST_TEST(static_cast<int>(result.metadataResult.status) == static_cast<int>(chaos::MetadataReadStatus::Invalid));
     BOOST_TEST(!result.decision.allowed);
     BOOST_TEST(result.decision.reasonKey == "chaos.compatibility.invalid_metadata");
+    BOOST_TEST(result.metadataResult.error == "invalid required feature 'chaos.not_real'");
     BOOST_TEST(!result.message.empty());
+    BOOST_TEST(result.userMessage.find("Chaos Edition cannot start") != std::string::npos);
+    BOOST_TEST(result.userMessage.find(".chaos sidecar file") != std::string::npos);
+    BOOST_TEST(result.userMessage.find("chaos.not_real") == std::string::npos);
+    BOOST_TEST(result.userMessage.find("chaos.compatibility") == std::string::npos);
 }
 
 BOOST_AUTO_TEST_CASE(ExistingSaveWithoutMetadataIsUnaffectedAtHelperLevel)

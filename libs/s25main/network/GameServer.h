@@ -40,6 +40,7 @@ public:
 
     /// Starts the server
     bool Start(const CreateServerInfo& csi, const MapDescription& map, const std::string& hostPw);
+    const std::string& GetLastStartError() const { return lastStartError_; }
 
     void Run();
 
@@ -192,6 +193,7 @@ private:
     std::chrono::steady_clock::time_point loadStartTime;
 
     LANDiscoveryService lanAnnouncer;
+    std::string lastStartError_;
     void RunStateLoading();
 };
 

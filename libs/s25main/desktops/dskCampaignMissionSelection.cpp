@@ -160,8 +160,10 @@ void dskCampaignMissionSelection::StartServer(unsigned missionIdx)
     MapDescription map{campaign_->getMapFilePath(missionIdx), MapType::OldMap, campaign_->getLuaFilePath(missionIdx)};
     if(!GAMECLIENT.HostGame(csi_, map))
     {
-        WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), _("Hosting of game not possible"), this,
-                                                      MsgboxButton::Ok, MsgboxIcon::ExclamationRed, ID_msgBoxError));
+        const std::string error =
+          GAMECLIENT.GetLastHostError().empty() ? _("Hosting of game not possible") : GAMECLIENT.GetLastHostError();
+        WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), error, this, MsgboxButton::Ok,
+                                                      MsgboxIcon::ExclamationRed, ID_msgBoxError));
     } else
     {
         iwConnecting& wnd = WINDOWMANAGER.Show(std::make_unique<iwConnecting>(csi_.type, nullptr));

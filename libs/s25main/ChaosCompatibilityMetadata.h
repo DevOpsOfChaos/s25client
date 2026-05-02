@@ -40,6 +40,7 @@ struct ContentCompatibilityResult
     MetadataReadResult metadataResult;
     CompatibilityDecision decision;
     std::string message;
+    std::string userMessage;
 };
 
 boost::filesystem::path GetCompatibilityMetadataPath(const boost::filesystem::path& contentPath);
@@ -48,5 +49,6 @@ ContentCompatibilityResult EvaluateContentCompatibility(const boost::filesystem:
                                                         RulesProfile rulesProfile);
 boost::optional<FeatureId> ParseFeatureId(const std::string& value);
 std::string BuildCompatibilityMessage(const ContentCompatibilityResult& result);
+std::string BuildUserFacingCompatibilityError(const ContentCompatibilityResult& result);
 
 } // namespace chaos

@@ -92,9 +92,11 @@ void dskSinglePlayer::Msg_ButtonClick(const unsigned ctrl_id)
                     WINDOWMANAGER.ShowAfterSwitch(std::make_unique<iwConnecting>(csi.type, nullptr));
                 else
                 {
-                    WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"),
-                                                                  _("The specified file couldn't be loaded!"), nullptr,
-                                                                  MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
+                    const std::string error = GAMECLIENT.GetLastHostError().empty() ?
+                                                _("The specified file couldn't be loaded!") :
+                                                GAMECLIENT.GetLastHostError();
+                    WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), error, nullptr, MsgboxButton::Ok,
+                                                                  MsgboxIcon::ExclamationRed));
                 }
             } else
                 WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), _("The specified file couldn't be loaded!"),
