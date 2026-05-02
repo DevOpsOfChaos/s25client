@@ -7,6 +7,7 @@
 #include "Loader.h"
 #include "MusicPlayer.h"
 #include "RTTR_Version.h"
+#include "RulesProfile.h"
 #include "Settings.h"
 #include "WindowManager.h"
 #include "controls/ctrlComboBox.h"
@@ -102,6 +103,7 @@ enum
     ID_pgEffectsVol,
     ID_btMusicPlayer,
     ID_txtChaosEdition,
+    ID_txtChaosRulesProfile,
     ID_txtChaosPlaceholder,
     ID_txtCommonPortrait,
     ID_btCommonPortrait,
@@ -443,10 +445,15 @@ dskOptions::dskOptions() : Desktop(LOADER.GetImageN("setup013", 0))
     groupChaos->AddText(ID_txtChaosEdition, curPos, rttr::version::GetEditionName(), COLOR_YELLOW, FontStyle{},
                         LargeFont);
     curPos.y += rowHeight + sectionSpacing;
+    groupChaos->AddText(ID_txtChaosRulesProfile, curPos,
+                        std::string(_("Rules profile: ")) + GetRulesProfileName(GetDefaultRulesProfile()), COLOR_YELLOW,
+                        FontStyle{}, NormalFont);
+    curPos.y += rowHeight;
     auto* chaosText =
       groupChaos->AddMultiline(ID_txtChaosPlaceholder, curPos, Extent(610, 90), TextureColor::Invisible, NormalFont);
     chaosText->SetScrollBarAllowed(false);
-    chaosText->AddString(_("Chaos-specific rules, visuals, AI, and compatibility options will be configured here."),
+    chaosText->AddString(_("Rules profiles will separate RTTR-compatible and Chaos behavior. Chaos-specific rules, "
+                           "visuals, AI, and compatibility options will be configured here."),
                          COLOR_YELLOW);
 
     // Select "General"
