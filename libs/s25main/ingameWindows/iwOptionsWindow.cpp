@@ -26,8 +26,9 @@ namespace {
 enum
 {
     ID_imgSoldier,
-    ID_txtRttr,
+    ID_txtEdition,
     ID_txtVersion,
+    ID_txtEditionAttribution,
     ID_txtCopyright,
     ID_btKeyboardLayout,
     ID_txtKeyboardLayout,
@@ -73,10 +74,14 @@ iwOptionsWindow::iwOptionsWindow(SoundManager& soundManager)
     AddImage(ID_imgSoldier, curPos + soldierOffset, LOADER.GetImageN("io", 30));
     curPos.y += textSpacing + soldierOffset.y;
 
-    AddText(ID_txtRttr, curPos, "Return To The Roots", COLOR_YELLOW, FontStyle::CENTER, NormalFont);
+    AddText(ID_txtEdition, curPos, rttr::version::GetEditionName(), COLOR_YELLOW, FontStyle::CENTER, NormalFont);
     curPos.y += textSpacing;
 
     AddText(ID_txtVersion, curPos, rttr::version::GetReadableVersion(), COLOR_YELLOW, FontStyle::CENTER, NormalFont);
+    curPos.y += textSpacing;
+
+    AddText(ID_txtEditionAttribution, curPos, rttr::version::GetEditionAttribution(), COLOR_YELLOW, FontStyle::CENTER,
+            SmallFont);
     curPos.y += textSpacing;
 
     AddFormattedText(ID_txtCopyright, curPos,
