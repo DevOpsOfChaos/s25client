@@ -334,6 +334,7 @@ endif()
 add_subdirectory(external)
 add_subdirectory(libs)
 add_subdirectory(extras)
+add_subdirectory(tools/chaos-metadata)
 
 find_package(Gettext REQUIRED)
 file(GLOB RTTR_PO_FILES CONFIGURE_DEPENDS external/languages/*.po)

@@ -67,6 +67,16 @@ bfs::path GetCompatibilityMetadataPath(const bfs::path& contentPath)
     return metadataPath;
 }
 
+bfs::path GetCompatibilityMetadataContentPath(const bfs::path& metadataPath)
+{
+    const std::string pathString = metadataPath.string();
+    const std::string suffix = ".chaos";
+    if(pathString.size() >= suffix.size()
+       && pathString.compare(pathString.size() - suffix.size(), suffix.size(), suffix) == 0)
+        return bfs::path(pathString.substr(0, pathString.size() - suffix.size()));
+    return metadataPath;
+}
+
 boost::optional<FeatureId> ParseFeatureId(const std::string& value)
 {
     if(value == ToStableFeatureKey(FeatureId::RulesProfile))
@@ -82,9 +92,26 @@ boost::optional<FeatureId> ParseFeatureId(const std::string& value)
     return boost::none;
 }
 
-MetadataReadResult ReadCompatibilityMetadata(const bfs::path& contentPath)
+bool ParseRequiredFeatures(const std::string& value, RequiredFeatures& requiredFeatures, std::string& error)
 {
-    const bfs::path metadataPath = GetCompatibilityMetadataPath(contentPath);
+    requiredFeatures.clear();
+    for(const std::string& featureValue : SplitCommaSeparatedList(value))
+    {
+        const boost::optional<FeatureId> featureId = ParseFeatureId(featureValue);
+        if(!featureId)
+        {
+            error = "invalid required feature '" + featureValue + "'";
+            return false;
+        }
+        if(!ContainsFeature(requiredFeatures, *featureId))
+            requiredFeatures.push_back(*featureId);
+    }
+    error.clear();
+    return true;
+}
+
+MetadataReadResult ReadCompatibilityMetadataFile(const bfs::path& metadataPath)
+{
     if(!bfs::is_regular_file(metadataPath))
         return {MetadataReadStatus::Missing, {}, {}};
 
@@ -119,13 +146,14 @@ MetadataReadResult ReadCompatibilityMetadata(const bfs::path& contentPath)
             metadata.requiredRulesProfile = parsedProfile;
         } else if(key == "requiredFeatures")
         {
-            for(const std::string& featureValue : SplitCommaSeparatedList(value))
+            RequiredFeatures parsedFeatures;
+            std::string error;
+            if(!ParseRequiredFeatures(value, parsedFeatures, error))
+                return {MetadataReadStatus::Invalid, {}, error};
+            for(const FeatureId featureId : parsedFeatures)
             {
-                const boost::optional<FeatureId> featureId = ParseFeatureId(featureValue);
-                if(!featureId)
-                    return {MetadataReadStatus::Invalid, {}, "invalid required feature '" + featureValue + "'"};
-                if(!ContainsFeature(metadata.requiredFeatures, *featureId))
-                    metadata.requiredFeatures.push_back(*featureId);
+                if(!ContainsFeature(metadata.requiredFeatures, featureId))
+                    metadata.requiredFeatures.push_back(featureId);
             }
         } else if(key == "minChaosVersion")
             metadata.minChaosVersion = value;
@@ -134,6 +162,11 @@ MetadataReadResult ReadCompatibilityMetadata(const bfs::path& contentPath)
     }
 
     return {MetadataReadStatus::Valid, metadata, {}};
+}
+
+MetadataReadResult ReadCompatibilityMetadata(const bfs::path& contentPath)
+{
+    return ReadCompatibilityMetadataFile(GetCompatibilityMetadataPath(contentPath));
 }
 
 ContentCompatibilityResult EvaluateContentCompatibility(const bfs::path& contentPath, const RulesProfile rulesProfile)

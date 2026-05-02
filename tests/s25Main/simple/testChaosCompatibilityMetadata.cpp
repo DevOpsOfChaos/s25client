@@ -4,6 +4,7 @@
 
 #include "ChaosCompatibilityMetadata.h"
 #include "ChaosCompatibilityPreview.h"
+#include "ChaosMetadataAuthoring.h"
 
 #include "rttr/test/TmpFolder.hpp"
 
@@ -100,6 +101,73 @@ BOOST_AUTO_TEST_CASE(InvalidMetadataFailsClosedWithoutCrashing)
     BOOST_TEST(result.userMessage.find(".chaos sidecar file") != std::string::npos);
     BOOST_TEST(result.userMessage.find("chaos.not_real") == std::string::npos);
     BOOST_TEST(result.userMessage.find("chaos.compatibility") == std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(InvalidRulesProfileIsRejected)
+{
+    const rttr::test::TmpFolder tmp;
+    const boost::filesystem::path mapPath = tmp / "broken-profile.swd";
+    WriteMetadata(mapPath, "rulesProfile=almost-chaos\nrequiredFeatures=chaos.rules_profile\n");
+
+    const auto result = chaos::EvaluateContentCompatibility(mapPath, RulesProfile::Chaos);
+
+    BOOST_TEST(static_cast<int>(result.metadataResult.status) == static_cast<int>(chaos::MetadataReadStatus::Invalid));
+    BOOST_TEST(!result.decision.allowed);
+    BOOST_TEST(result.metadataResult.error == "invalid rulesProfile 'almost-chaos'");
+    BOOST_TEST(result.userMessage.find("chaos.compatibility") == std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(InvalidRequiredFeaturesFormatIsRejected)
+{
+    chaos::RequiredFeatures requiredFeatures;
+    std::string error;
+
+    const bool parsed = chaos::ParseRequiredFeatures("chaos.rules_profile;chaos.extended_ai", requiredFeatures, error);
+
+    BOOST_TEST(!parsed);
+    BOOST_TEST(requiredFeatures.empty());
+    BOOST_TEST(error == "invalid required feature 'chaos.rules_profile;chaos.extended_ai'");
+    BOOST_TEST(error.find("chaos.compatibility") == std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(AuthoringWritesDeterministicMetadata)
+{
+    const rttr::test::TmpFolder tmp;
+    const boost::filesystem::path mapPath = tmp / "new-map.swd";
+    chaos::CompatibilityMetadata metadata;
+    metadata.requiredRulesProfile = RulesProfile::Chaos;
+    metadata.requiredFeatures = {chaos::FeatureId::RulesProfile, chaos::FeatureId::ExtendedAi};
+    metadata.minChaosVersion = "1";
+
+    const auto result = chaos::WriteCompatibilityMetadata(mapPath, metadata, false);
+    const auto readResult = chaos::ReadCompatibilityMetadata(mapPath);
+
+    BOOST_TEST(static_cast<int>(result.status) == static_cast<int>(chaos::MetadataWriteStatus::Written));
+    BOOST_TEST(result.metadataPath.filename().string() == "new-map.swd.chaos");
+    BOOST_TEST(chaos::SerializeCompatibilityMetadata(metadata)
+               == "rulesProfile=chaos\nrequiredFeatures=chaos.rules_profile, chaos.extended_ai\nminChaosVersion=1\n");
+    BOOST_TEST(static_cast<int>(readResult.status) == static_cast<int>(chaos::MetadataReadStatus::Valid));
+    BOOST_TEST_REQUIRE(readResult.metadata.requiredFeatures.size() == 2u);
+}
+
+BOOST_AUTO_TEST_CASE(AuthoringDoesNotOverwriteExistingMetadataByDefault)
+{
+    const rttr::test::TmpFolder tmp;
+    const boost::filesystem::path mapPath = tmp / "existing-map.swd";
+    WriteMetadata(mapPath, "rulesProfile=chaos\nrequiredFeatures=chaos.rules_profile\n");
+    chaos::CompatibilityMetadata metadata;
+    metadata.requiredRulesProfile = RulesProfile::RttrCompatible;
+    metadata.requiredFeatures = {};
+
+    const auto result = chaos::WriteCompatibilityMetadata(mapPath, metadata, false);
+    const auto readResult = chaos::ReadCompatibilityMetadata(mapPath);
+
+    BOOST_TEST(static_cast<int>(result.status) == static_cast<int>(chaos::MetadataWriteStatus::AlreadyExists));
+    BOOST_TEST(readResult.metadata.requiredRulesProfile.has_value());
+    BOOST_TEST(static_cast<int>(*readResult.metadata.requiredRulesProfile) == static_cast<int>(RulesProfile::Chaos));
+    BOOST_TEST_REQUIRE(readResult.metadata.requiredFeatures.size() == 1u);
+    BOOST_TEST(static_cast<int>(readResult.metadata.requiredFeatures[0])
+               == static_cast<int>(chaos::FeatureId::RulesProfile));
 }
 
 BOOST_AUTO_TEST_CASE(ExistingSaveWithoutMetadataIsUnaffectedAtHelperLevel)
