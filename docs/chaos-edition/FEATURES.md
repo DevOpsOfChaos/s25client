@@ -27,6 +27,21 @@ Chaos Edition currently defines two high-level rules profiles:
 
 The selected rules profile, not the launcher theme or visual appearance, decides compatibility. A classic-looking UI can still be running Chaos rules, and a Chaos launcher can still select RTTR-compatible behavior.
 
+## Rules Profile Defaults
+
+The Chaos profile currently changes only the default state of selected rules addons. RTTR-compatible keeps the old defaults so normal existing content does not silently opt into Chaos behavior.
+
+| Behavior | Feature key | RTTR-compatible default | Chaos default | Can explicit config override? |
+| --- | --- | --- | --- | --- |
+| Tool ordering | `chaos.rules.tool_ordering_default_enabled` | off | on | yes |
+| Automatic flag placement | `chaos.rules.automatic_flag_placement_default_enabled` | off | on | yes |
+
+These feature keys describe registered and supported Chaos profile defaults. They are not reserved or planned keys. Content may require them when it depends on those defaults being available under the selected profile.
+
+Saved or explicitly configured addon values override profile defaults. A profile default is only the initial behavior when no stored or explicit addon configuration has already chosen a value.
+
+`requiredFeatures` does not turn an addon on. It describes compatibility requirements so the loader can reject content whose assumptions are unsupported by the selected rules profile. Chaos-only content that relies on the Chaos defaults above should declare the matching `requiredFeatures` entries instead of assuming the selected profile, UI theme, or file location proves compatibility.
+
 ## Known Feature Keys
 
 The authoritative in-code catalog is `chaos::KnownFeatureDefinitions` in `libs/s25main/ChaosFeatureRequirements.h`. Use `chaos-metadata features` to print the current runtime view.
