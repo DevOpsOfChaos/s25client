@@ -72,6 +72,21 @@ BOOST_AUTO_TEST_CASE(FeatureDefinitionsHaveUniqueChaosPrefixedKeys)
     }
 }
 
+BOOST_AUTO_TEST_CASE(FeatureDefinitionsKeepDeterministicFeaturesListOrder)
+{
+    const auto& definitions = chaos::GetKnownFeatureDefinitions();
+
+    BOOST_TEST_REQUIRE(definitions.size() == 8u);
+    BOOST_TEST(definitions[0].stableKey == std::string("chaos.rules_profile"));
+    BOOST_TEST(definitions[1].stableKey == std::string("chaos.extended_content"));
+    BOOST_TEST(definitions[2].stableKey == std::string("chaos.extended_ai"));
+    BOOST_TEST(definitions[3].stableKey == std::string("chaos.extended_visuals"));
+    BOOST_TEST(definitions[4].stableKey == std::string("chaos.map_metadata_v1"));
+    BOOST_TEST(definitions[5].stableKey == std::string("chaos.ui.compatibility_preview_status"));
+    BOOST_TEST(definitions[6].stableKey == std::string("chaos.rules.tool_ordering_default_enabled"));
+    BOOST_TEST(definitions[7].stableKey == std::string("chaos.rules.automatic_flag_placement_default_enabled"));
+}
+
 BOOST_AUTO_TEST_CASE(CompatibilityPreviewStatusIsRegisteredCentralFeature)
 {
     const chaos::FeatureDefinition* definition =
@@ -184,15 +199,20 @@ BOOST_AUTO_TEST_CASE(RttrCompatibleProfileDoesNotSupportToolOrderingDefaultEnabl
                == static_cast<int>(chaos::FeatureId::ToolOrderingDefaultEnabled));
 }
 
-BOOST_AUTO_TEST_CASE(ToolOrderingDefaultDependsOnRulesProfile)
+BOOST_AUTO_TEST_CASE(ChaosRuleDefaultsEnableToolOrderingAndAutomaticFlagPlacement)
 {
     const GlobalGameSettings rttrCompatibleSettings(RulesProfile::RttrCompatible);
     const GlobalGameSettings chaosSettings(RulesProfile::Chaos);
 
     BOOST_TEST(!rttrCompatibleSettings.isEnabled(AddonId::TOOL_ORDERING));
     BOOST_TEST(rttrCompatibleSettings.getSelection(AddonId::TOOL_ORDERING) == 0u);
+    BOOST_TEST(!rttrCompatibleSettings.isEnabled(AddonId::AUTOFLAGS));
+    BOOST_TEST(rttrCompatibleSettings.getSelection(AddonId::AUTOFLAGS) == 0u);
+
     BOOST_TEST(chaosSettings.isEnabled(AddonId::TOOL_ORDERING));
     BOOST_TEST(chaosSettings.getSelection(AddonId::TOOL_ORDERING) == 1u);
+    BOOST_TEST(chaosSettings.isEnabled(AddonId::AUTOFLAGS));
+    BOOST_TEST(chaosSettings.getSelection(AddonId::AUTOFLAGS) == 1u);
 }
 
 BOOST_AUTO_TEST_CASE(AutomaticFlagPlacementDefaultEnabledRequirementIsAllowedForChaosProfile)
@@ -221,22 +241,30 @@ BOOST_AUTO_TEST_CASE(RttrCompatibleProfileDoesNotSupportAutomaticFlagPlacementDe
                == static_cast<int>(chaos::FeatureId::AutomaticFlagPlacementDefaultEnabled));
 }
 
-BOOST_AUTO_TEST_CASE(AutomaticFlagPlacementDefaultDependsOnRulesProfile)
-{
-    const GlobalGameSettings rttrCompatibleSettings(RulesProfile::RttrCompatible);
-    const GlobalGameSettings chaosSettings(RulesProfile::Chaos);
-
-    BOOST_TEST(!rttrCompatibleSettings.isEnabled(AddonId::AUTOFLAGS));
-    BOOST_TEST(rttrCompatibleSettings.getSelection(AddonId::AUTOFLAGS) == 0u);
-    BOOST_TEST(chaosSettings.isEnabled(AddonId::AUTOFLAGS));
-    BOOST_TEST(chaosSettings.getSelection(AddonId::AUTOFLAGS) == 1u);
-}
-
-BOOST_AUTO_TEST_CASE(ExplicitAddonConfigurationOverridesChaosAutomaticFlagPlacementDefault)
+BOOST_AUTO_TEST_CASE(ExplicitAddonConfigurationOverridesChaosRuleDefaults)
 {
     GlobalGameSettings settings(RulesProfile::Chaos);
+    settings.setSelection(AddonId::TOOL_ORDERING, 0);
     settings.setSelection(AddonId::AUTOFLAGS, 0);
 
+    BOOST_TEST(!settings.isEnabled(AddonId::TOOL_ORDERING));
+    BOOST_TEST(settings.getSelection(AddonId::TOOL_ORDERING) == 0u);
+    BOOST_TEST(!settings.isEnabled(AddonId::AUTOFLAGS));
+    BOOST_TEST(settings.getSelection(AddonId::AUTOFLAGS) == 0u);
+}
+
+BOOST_AUTO_TEST_CASE(RequiredFeaturesDoNotApplyAddonConfiguration)
+{
+    GlobalGameSettings settings(RulesProfile::RttrCompatible);
+    const chaos::RequiredFeatures requiredFeatures = {chaos::FeatureId::ToolOrderingDefaultEnabled,
+                                                      chaos::FeatureId::AutomaticFlagPlacementDefaultEnabled};
+
+    const auto decision = chaos::EvaluateCompatibility(
+      RulesProfile::Chaos, chaos::GetSupportedFeatures(RulesProfile::Chaos), requiredFeatures);
+
+    BOOST_TEST(decision.allowed);
+    BOOST_TEST(!settings.isEnabled(AddonId::TOOL_ORDERING));
+    BOOST_TEST(settings.getSelection(AddonId::TOOL_ORDERING) == 0u);
     BOOST_TEST(!settings.isEnabled(AddonId::AUTOFLAGS));
     BOOST_TEST(settings.getSelection(AddonId::AUTOFLAGS) == 0u);
 }
