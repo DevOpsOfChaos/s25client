@@ -10,20 +10,28 @@ CompatibilityPreview BuildCompatibilityPreview(const ContentCompatibilityResult&
 {
     switch(result.metadataResult.status)
     {
-        case MetadataReadStatus::Missing:
-            return {CompatibilityPreviewStatus::Neutral, "RTTR-compatible / no Chaos metadata"};
-        case MetadataReadStatus::Invalid: return {CompatibilityPreviewStatus::Invalid, "Invalid Chaos metadata"};
+        case MetadataReadStatus::Missing: return {CompatibilityPreviewStatus::Neutral, "Chaos metadata: not present"};
+        case MetadataReadStatus::Invalid: return {CompatibilityPreviewStatus::Invalid, "Chaos metadata: invalid"};
         case MetadataReadStatus::Valid:
             if(result.decision.allowed)
-                return {CompatibilityPreviewStatus::Compatible, "Chaos Edition compatible"};
+            {
+                std::string text = "Chaos metadata: compatible";
+                if(!result.metadataResult.metadata.requiredFeatures.empty())
+                    text +=
+                      " (requires: " + BuildRequiredFeaturesText(result.metadataResult.metadata.requiredFeatures) + ")";
+                return {CompatibilityPreviewStatus::Compatible, text};
+            }
             if(result.decision.reasonKey == std::string("chaos.compatibility.rules_profile_mismatch"))
-                return {CompatibilityPreviewStatus::Incompatible, "Incompatible: requires a different rules profile"};
+                return {CompatibilityPreviewStatus::Incompatible,
+                        "Chaos metadata: incompatible (requires a different rules profile)"};
             if(!result.decision.missingRequiredFeatures.empty())
                 return {CompatibilityPreviewStatus::Incompatible,
-                        "Incompatible: requires unsupported Chaos compatibility features"};
-            return {CompatibilityPreviewStatus::Incompatible, "Incompatible: Chaos requirements are not satisfied"};
+                        "Chaos metadata: incompatible (unsupported features: "
+                          + BuildRequiredFeaturesText(result.decision.missingRequiredFeatures) + ")"};
+            return {CompatibilityPreviewStatus::Incompatible,
+                    "Chaos metadata: incompatible (requirements are not satisfied)"};
     }
-    return {CompatibilityPreviewStatus::Incompatible, "Incompatible: Chaos requirements are not satisfied"};
+    return {CompatibilityPreviewStatus::Incompatible, "Chaos metadata: incompatible (requirements are not satisfied)"};
 }
 
 } // namespace chaos

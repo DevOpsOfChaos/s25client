@@ -16,6 +16,14 @@ Chaos-only content must declare `requiredFeatures` when it requires Chaos behavi
 
 Unknown feature keys are rejected deterministically. They are not ignored, guessed, downgraded, or treated as optional.
 
+## UX and Compatibility Gate
+
+Chaos metadata is shown in preview surfaces as information only. Preview text uses short status phrases such as `Chaos metadata: not present`, `Chaos metadata: compatible`, `Chaos metadata: invalid`, or `Chaos metadata: incompatible`. A compatible preview may list the known `requiredFeatures` so authors and players can see which requirements are involved.
+
+The compatibility gate remains authoritative. Starting a map or save performs the shared compatibility check again. Missing `.chaos` metadata is allowed as normal existing content. Present but invalid metadata, a mismatching `rulesProfile`, or unsupported `requiredFeatures` blocks start-up with a user-facing error that explains the cause without exposing internal reason keys.
+
+Preview text must not be treated as permission to bypass the gate. It is a quick signal for selection screens and save/load lists; the gate is the decision point.
+
 ## Rules Profiles
 
 Chaos Edition currently defines two high-level rules profiles:
@@ -88,6 +96,10 @@ chaos-metadata features
 The command prints:
 
 ```text
+status=success
+path=
+message=Registered Chaos compatibility features.
+features:
 key	category	supportedProfiles	userFacing
 chaos.rules_profile	metadata	chaos	yes
 ...
@@ -110,6 +122,19 @@ chaos-metadata validate example.swd.chaos --rules-profile rttr-compatible
 
 Validation returns structured text with `status`, `path`, and `message`. Invalid metadata exits as invalid. Unsupported requirements exit as incompatible. A successful result means the metadata is syntactically valid and the selected profile provides all required features.
 
+Successful validation also prints the metadata requirements in deterministic fields:
+
+```text
+status=success
+path=example.swd.chaos
+message=Chaos metadata: compatible (requiredFeatures: chaos.rules_profile).
+rulesProfile=chaos
+requiredFeatures=chaos.rules_profile
+minChaosVersion=unspecified
+```
+
+Validation may name an invalid or unsupported feature key because stable feature keys are the author-facing contract. It must not print internal `chaos.compatibility.*` reason keys.
+
 ## Authoring Rules
 
 - Existing maps and saves without `.chaos` metadata remain compatible.
@@ -118,3 +143,4 @@ Validation returns structured text with `status`, `path`, and `message`. Invalid
 - Unknown feature keys are rejected deterministically.
 - Known but unsupported reserved keys must not be required by shipping content.
 - Do not use `.chaos` metadata to silently reinterpret normal RTTR-compatible content as Chaos-only content.
+- Do not assume `requiredFeatures` enables addons. Addon defaults come from the selected `RulesProfile`, and explicit saved or configured addon values still override those defaults.

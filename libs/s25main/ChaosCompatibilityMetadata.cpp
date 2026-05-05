@@ -47,15 +47,6 @@ namespace {
 
     CompatibilityDecision BuildInvalidMetadataDecision() { return {false, {}, "chaos.compatibility.invalid_metadata"}; }
 
-    std::string JoinMissingFeatures(const RequiredFeatures& features)
-    {
-        std::vector<std::string> featureKeys;
-        featureKeys.reserve(features.size());
-        for(const FeatureId featureId : features)
-            featureKeys.emplace_back(ToStableFeatureKey(featureId));
-        return boost::algorithm::join(featureKeys, ", ");
-    }
-
     std::string GetProductName() { return rttr::version::GetEditionName(); }
 
 } // namespace
@@ -103,6 +94,18 @@ bool ParseRequiredFeatures(const std::string& value, RequiredFeatures& requiredF
     }
     error.clear();
     return true;
+}
+
+std::string BuildRequiredFeaturesText(const RequiredFeatures& requiredFeatures)
+{
+    if(requiredFeatures.empty())
+        return "none";
+
+    std::vector<std::string> featureKeys;
+    featureKeys.reserve(requiredFeatures.size());
+    for(const FeatureId featureId : requiredFeatures)
+        featureKeys.emplace_back(ToStableFeatureKey(featureId));
+    return boost::algorithm::join(featureKeys, ", ");
 }
 
 MetadataReadResult ReadCompatibilityMetadataFile(const bfs::path& metadataPath)
@@ -193,19 +196,20 @@ std::string BuildCompatibilityMessage(const ContentCompatibilityResult& result)
 {
     switch(result.metadataResult.status)
     {
-        case MetadataReadStatus::Missing: return "No Chaos compatibility metadata present.";
-        case MetadataReadStatus::Invalid: return "Invalid Chaos compatibility metadata: " + result.metadataResult.error;
+        case MetadataReadStatus::Missing: return "Chaos metadata: not present.";
+        case MetadataReadStatus::Invalid: return "Chaos metadata: invalid (" + result.metadataResult.error + ").";
         case MetadataReadStatus::Valid:
             if(result.decision.allowed)
-                return "Chaos compatibility metadata requirements are satisfied.";
+                return "Chaos metadata: compatible (requiredFeatures: "
+                       + BuildRequiredFeaturesText(result.metadataResult.metadata.requiredFeatures) + ").";
             if(result.decision.reasonKey == std::string("chaos.compatibility.rules_profile_mismatch"))
-                return "Chaos compatibility metadata requires a different rules profile.";
+                return "Chaos metadata: incompatible (requires a different rules profile).";
             if(!result.decision.missingRequiredFeatures.empty())
-                return "Missing Chaos compatibility features: "
-                       + JoinMissingFeatures(result.decision.missingRequiredFeatures);
-            return "Chaos compatibility metadata requirements are not satisfied.";
+                return "Chaos metadata: incompatible (unsupported requiredFeatures: "
+                       + BuildRequiredFeaturesText(result.decision.missingRequiredFeatures) + ").";
+            return "Chaos metadata: incompatible (requirements are not satisfied).";
     }
-    return "Unknown Chaos compatibility metadata state.";
+    return "Chaos metadata: incompatible (unknown metadata state).";
 }
 
 std::string BuildUserFacingCompatibilityError(const ContentCompatibilityResult& result)
@@ -218,22 +222,23 @@ std::string BuildUserFacingCompatibilityError(const ContentCompatibilityResult& 
     {
         case MetadataReadStatus::Missing: return {};
         case MetadataReadStatus::Invalid:
-            return productName
-                   + " cannot start this map or save because its Chaos compatibility metadata is invalid. Check the "
-                     ".chaos sidecar file next to the content.";
+            return productName + " cannot start this map or save because its Chaos metadata is invalid: "
+                   + result.metadataResult.error + ".";
         case MetadataReadStatus::Valid:
             if(result.decision.reasonKey == std::string("chaos.compatibility.rules_profile_mismatch"))
-                return productName + " cannot start this map or save because it requires a different rules profile.";
+                return productName
+                       + " cannot start this map or save because its Chaos metadata requires a different rules "
+                         "profile.";
             if(!result.decision.missingRequiredFeatures.empty())
                 return productName
-                       + " cannot start this map or save because it requires unsupported Chaos compatibility features: "
-                       + JoinMissingFeatures(result.decision.missingRequiredFeatures) + ".";
+                       + " cannot start this map or save because its Chaos metadata requires unsupported features: "
+                       + BuildRequiredFeaturesText(result.decision.missingRequiredFeatures) + ".";
             return productName
-                   + " cannot start this map or save because its Chaos compatibility requirements are not "
+                   + " cannot start this map or save because its Chaos metadata requirements are not "
                      "satisfied.";
     }
     return productName
-           + " cannot start this map or save because its Chaos compatibility requirements are not "
+           + " cannot start this map or save because its Chaos metadata requirements are not "
              "satisfied.";
 }
 

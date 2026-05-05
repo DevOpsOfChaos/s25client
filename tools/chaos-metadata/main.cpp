@@ -31,6 +31,16 @@ void PrintResult(const std::string& status, const bfs::path& path, const std::st
     bnw::cout << "message=" << message << "\n";
 }
 
+void PrintMetadataDetails(const chaos::CompatibilityMetadata& metadata)
+{
+    bnw::cout << "rulesProfile="
+              << (metadata.requiredRulesProfile ? SerializeRulesProfile(*metadata.requiredRulesProfile) : "unspecified")
+              << "\n";
+    bnw::cout << "requiredFeatures=" << chaos::BuildRequiredFeaturesText(metadata.requiredFeatures) << "\n";
+    bnw::cout << "minChaosVersion=" << (metadata.minChaosVersion.empty() ? "unspecified" : metadata.minChaosVersion)
+              << "\n";
+}
+
 bool ParseRulesProfileStrict(const std::string& value, RulesProfile& rulesProfile)
 {
     rulesProfile = ParseRulesProfile(value, RulesProfile::Chaos);
@@ -63,10 +73,12 @@ int ValidateMetadata(const bfs::path& inputPath, const RulesProfile rulesProfile
     {
         PrintResult("incompatible", result.metadataPath,
                     result.userMessage.empty() ? result.message : result.userMessage);
+        PrintMetadataDetails(result.metadataResult.metadata);
         return ExitIncompatible;
     }
 
     PrintResult("success", result.metadataPath, result.message);
+    PrintMetadataDetails(result.metadataResult.metadata);
     return ExitSuccess;
 }
 
@@ -99,6 +111,7 @@ int CreateMetadata(const bfs::path& contentPath, const std::string& rulesProfile
     }
 
     PrintResult("success", result.metadataPath, result.message);
+    PrintMetadataDetails(metadata);
     return ExitSuccess;
 }
 
@@ -118,6 +131,8 @@ std::string GetSupportedProfiles(const chaos::FeatureDefinition& definition)
 
 int ListFeatures()
 {
+    PrintResult("success", {}, "Registered Chaos compatibility features.");
+    bnw::cout << "features:\n";
     bnw::cout << "key\tcategory\tsupportedProfiles\tuserFacing\n";
     for(const chaos::FeatureDefinition& definition : chaos::GetKnownFeatureDefinitions())
     {

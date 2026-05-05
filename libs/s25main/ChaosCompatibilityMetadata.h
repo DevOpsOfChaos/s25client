@@ -51,6 +51,7 @@ ContentCompatibilityResult EvaluateContentCompatibility(const boost::filesystem:
                                                         RulesProfile rulesProfile);
 boost::optional<FeatureId> ParseFeatureId(const std::string& value);
 bool ParseRequiredFeatures(const std::string& value, RequiredFeatures& requiredFeatures, std::string& error);
+std::string BuildRequiredFeaturesText(const RequiredFeatures& requiredFeatures);
 std::string BuildCompatibilityMessage(const ContentCompatibilityResult& result);
 std::string BuildUserFacingCompatibilityError(const ContentCompatibilityResult& result);
 
