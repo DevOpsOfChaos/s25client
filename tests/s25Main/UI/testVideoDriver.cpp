@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "PointOutput.h"
+#include "Settings.h"
+#include "TextureFiltering.h"
 #include "drivers/VideoDriverWrapper.h"
 #include "helpers/containerUtils.h"
 #include "mockupDrivers/MockupVideoDriver.h"
@@ -13,6 +15,7 @@
 #include <s25util/warningSuppression.h>
 #include <glad/glad.h>
 #include <boost/test/unit_test.hpp>
+#include <vector>
 
 // LCOV_EXCL_START
 static std::ostream& operator<<(std::ostream& os, const VideoMode mode)
@@ -38,7 +41,15 @@ BOOST_AUTO_TEST_CASE(FindClosestVideoMode)
 namespace rttrOglMock2 {
 RTTR_IGNORE_DIAGNOSTIC("-Wmissing-declarations")
 
+struct TextureFilterCall
+{
+    GLenum target;
+    GLenum pname;
+    GLint param;
+};
+
 std::vector<GLuint> activeTextures;
+std::vector<TextureFilterCall> textureFilterCalls;
 
 void APIENTRY glGenTextures(GLsizei n, GLuint* textures)
 {
@@ -57,6 +68,10 @@ void APIENTRY glDeleteTextures(GLsizei n, const GLuint* textures)
         BOOST_TEST(helpers::contains(activeTextures, *textures));
         helpers::erase(activeTextures, *(textures++));
     }
+}
+void APIENTRY glTexParameteri(GLenum target, GLenum pname, GLint param)
+{
+    textureFilterCalls.push_back({target, pname, param});
 }
 
 RTTR_POP_DIAGNOSTIC
@@ -101,6 +116,40 @@ BOOST_FIXTURE_TEST_CASE(CreateAndDestroyTextures, uiHelper::Fixture)
     BOOST_TEST_REQUIRE(rttrOglMock2::activeTextures.empty());
     // Next cleanup call is a no-op (validated inside glDeleteTextures)
     VIDEODRIVER.CleanUp();
+}
+
+BOOST_FIXTURE_TEST_CASE(ConfiguredTextureFiltersFollowLocalVideoSetting, uiHelper::Fixture)
+{
+    const TextureFiltering oldTextureFiltering = SETTINGS.video.textureFiltering;
+    RTTR_STUB_FUNCTION(glTexParameteri, rttrOglMock2::glTexParameteri);
+
+    const unsigned texture = VIDEODRIVER.GenerateTexture();
+    BOOST_TEST_REQUIRE(texture != 0u);
+
+    SETTINGS.video.textureFiltering = TextureFiltering::Pixel;
+    rttrOglMock2::textureFilterCalls.clear();
+    VIDEODRIVER.SetConfiguredTextureFilter(texture);
+    BOOST_TEST_REQUIRE(rttrOglMock2::textureFilterCalls.size() == 2u);
+    BOOST_TEST(rttrOglMock2::textureFilterCalls[0].target == GL_TEXTURE_2D);
+    BOOST_TEST(rttrOglMock2::textureFilterCalls[0].pname == GL_TEXTURE_MIN_FILTER);
+    BOOST_TEST(rttrOglMock2::textureFilterCalls[0].param == GL_NEAREST);
+    BOOST_TEST(rttrOglMock2::textureFilterCalls[1].target == GL_TEXTURE_2D);
+    BOOST_TEST(rttrOglMock2::textureFilterCalls[1].pname == GL_TEXTURE_MAG_FILTER);
+    BOOST_TEST(rttrOglMock2::textureFilterCalls[1].param == GL_NEAREST);
+
+    SETTINGS.video.textureFiltering = TextureFiltering::Smooth;
+    rttrOglMock2::textureFilterCalls.clear();
+    VIDEODRIVER.UpdateConfiguredTextureFilters();
+    BOOST_TEST_REQUIRE(rttrOglMock2::textureFilterCalls.size() >= 2u);
+    for(const auto& call : rttrOglMock2::textureFilterCalls)
+    {
+        BOOST_TEST(call.target == GL_TEXTURE_2D);
+        BOOST_TEST((call.pname == GL_TEXTURE_MIN_FILTER || call.pname == GL_TEXTURE_MAG_FILTER));
+        BOOST_TEST(call.param == GL_LINEAR);
+    }
+
+    VIDEODRIVER.DeleteTexture(texture);
+    SETTINGS.video.textureFiltering = oldTextureFiltering;
 }
 
 BOOST_AUTO_TEST_CASE(TranslateDimensionsBetweenScreenAndViewSpace)

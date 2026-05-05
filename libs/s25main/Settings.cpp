@@ -272,13 +272,9 @@ void Settings::Load()
         video.framerate = iniVideo->getValue("framerate", 0);
         video.vbo = iniVideo->getBoolValue("vbo");
         video.sharedTextures = iniVideo->getBoolValue("shared_textures");
-        const auto textureFiltering =
-          iniVideo->getValue("texture_filtering", static_cast<int>(GetDefaultTextureFiltering()));
-        if(textureFiltering >= 0
-           && static_cast<unsigned>(textureFiltering) <= helpers::MaxEnumValue_v<TextureFiltering>)
-            video.textureFiltering = static_cast<TextureFiltering>(textureFiltering);
-        else
-            video.textureFiltering = GetDefaultTextureFiltering();
+        const auto textureFiltering = iniVideo->getValue(
+          "texture_filtering", s25util::toStringClassic(static_cast<int>(GetDefaultTextureFiltering())));
+        video.textureFiltering = ParseTextureFilteringConfigValue(textureFiltering);
         video.guiScale = iniVideo->getValue("gui_scale", 0);
         // };
 

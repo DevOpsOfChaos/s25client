@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 enum class TextureFiltering : uint8_t
 {
@@ -21,3 +22,6 @@ constexpr TextureFiltering GetDefaultTextureFiltering()
 {
     return TextureFiltering::Pixel;
 }
+
+TextureFiltering ParseTextureFilteringConfigValue(int value);
+TextureFiltering ParseTextureFilteringConfigValue(const std::string& value);
