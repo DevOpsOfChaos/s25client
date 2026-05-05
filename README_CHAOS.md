@@ -1,6 +1,6 @@
-# Return To The Roots: Chaos Edition
+# Chaos Edition
 
-Chaos Edition is an unofficial fork layer for Return To The Roots. It exists to experiment with ideas that may not belong in the upstream project, while keeping the codebase close enough to upstream/master that regular rebases and selective upstream contributions remain practical.
+Chaos Edition is an unofficial fork based on Return to the Roots. It exists to experiment with ideas that may not belong in the upstream project, while keeping the codebase close enough to upstream/master that regular rebases and selective upstream contributions remain practical.
 
 This document is a coordination point for the fork. It does not change gameplay, graphics, AI, build behavior, or asset handling.
 
@@ -25,4 +25,4 @@ Chaos Edition should avoid mixing unrelated goals in the same change. A useful r
 
 - [Roadmap](docs/chaos-edition/ROADMAP.md)
 - [Upstream Policy](docs/chaos-edition/UPSTREAM_POLICY.md)
-
+- [Feature Requirements](docs/chaos-edition/FEATURES.md)
