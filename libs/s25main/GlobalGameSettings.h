@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "RulesProfile.h"
 #include "gameTypes/GameSettingTypes.h"
 #include <memory>
 #include <vector>
@@ -16,6 +17,7 @@ class GlobalGameSettings
 {
 public:
     GlobalGameSettings();
+    explicit GlobalGameSettings(RulesProfile rulesProfile);
     GlobalGameSettings(const GlobalGameSettings& ggs);
     GlobalGameSettings(GlobalGameSettings&&) noexcept;
     ~GlobalGameSettings();
@@ -43,6 +45,7 @@ public:
 
     /// Reset all addons to their defaults
     void resetAddons();
+    void resetAddons(RulesProfile rulesProfile);
 
     bool isEnabled(AddonId id) const;
     unsigned getSelection(AddonId id) const;
@@ -69,6 +72,7 @@ private:
     };
 
     void registerAddon(std::unique_ptr<Addon> addon);
+    void applyRulesProfileDefaults(RulesProfile rulesProfile);
     const AddonWithState* getAddon(AddonId id) const;
     AddonWithState* getAddon(AddonId id);
 

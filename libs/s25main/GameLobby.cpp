@@ -4,9 +4,10 @@
 
 #include "GameLobby.h"
 #include "JoinPlayerInfo.h"
+#include "Settings.h"
 
 GameLobby::GameLobby(bool isSavegame, bool isHost, unsigned numPlayers)
-    : isSavegame_(isSavegame), isHost_(isHost), players_(numPlayers)
+    : isSavegame_(isSavegame), isHost_(isHost), players_(numPlayers), ggs_(SETTINGS.chaos.rulesProfile)
 {}
 GameLobby::~GameLobby() = default;
 

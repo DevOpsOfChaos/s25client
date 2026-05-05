@@ -17,11 +17,14 @@
 #include <iostream>
 #include <stdexcept>
 
-GlobalGameSettings::GlobalGameSettings()
+GlobalGameSettings::GlobalGameSettings() : GlobalGameSettings(RulesProfile::RttrCompatible) {}
+
+GlobalGameSettings::GlobalGameSettings(const RulesProfile rulesProfile)
     : speed(GameSpeed::Normal), objective(GameObjective::None), startWares(StartWares::Normal), lockedTeams(false),
       exploration(Exploration::FogOfWar), teamView(true), randomStartPosition(false)
 {
     registerAllAddons();
+    applyRulesProfileDefaults(rulesProfile);
 }
 
 GlobalGameSettings::GlobalGameSettings(const GlobalGameSettings& ggs)
@@ -116,8 +119,14 @@ void GlobalGameSettings::registerAllAddons()
 
 void GlobalGameSettings::resetAddons()
 {
+    resetAddons(RulesProfile::RttrCompatible);
+}
+
+void GlobalGameSettings::resetAddons(const RulesProfile rulesProfile)
+{
     for(AddonWithState& addon : addons)
         addon.status = addon.addon->getDefaultStatus();
+    applyRulesProfileDefaults(rulesProfile);
 }
 
 const Addon* GlobalGameSettings::getAddon(unsigned idx, unsigned& status) const
@@ -176,12 +185,18 @@ void GlobalGameSettings::registerAddon(std::unique_ptr<Addon> addon)
     addons.insert(std::upper_bound(addons.begin(), addons.end(), newItem, cmpByName), std::move(newItem));
 }
 
+void GlobalGameSettings::applyRulesProfileDefaults(const RulesProfile rulesProfile)
+{
+    if(IsChaosRulesProfile(rulesProfile))
+        setSelection(AddonId::TOOL_ORDERING, 1);
+}
+
 /**
  *  loads the saved addon configuration from the SETTINGS.
  */
 void GlobalGameSettings::LoadSettings()
 {
-    resetAddons();
+    resetAddons(SETTINGS.chaos.rulesProfile);
 
     for(const auto& it : SETTINGS.addons.configuration)
         setSelection(static_cast<AddonId>(it.first), it.second);
