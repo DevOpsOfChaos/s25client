@@ -98,6 +98,39 @@ Concentrate branding at user-visible boundaries:
 
 Branding in these places helps users understand what they are running, where it came from, and whether a map or save needs Chaos-specific behavior.
 
+## Release Identity Boundary v1
+
+Chaos Edition currently separates visible product branding from release, build, and packaging identity.
+
+Allowed and already established:
+
+- Visible in-game and UI branding may say `Chaos Edition`.
+- The about/options window may show the public product name and attribution.
+- The main menu footer may show the public product name and attribution.
+- The main menu or launcher area may show the public product name and attribution.
+- Central edition metadata may expose `GetEditionName()`, `GetEditionAttribution()`, and `GetEditionInternalPrefix()`.
+
+Current boundaries:
+
+- `GetTitle()` remains unchanged for now.
+- Binary, executable, package, installer, and CMake identity remain unchanged for now.
+- App/window title identity remains a release decision, not a side effect of UI branding.
+- No icon, asset, installer, package, binary, executable, or CMake naming change is implied by the current branding layer.
+- Release artifact naming is not decided by this document's existing UI branding rules.
+
+This split is intentional. Chaos Edition is its own product line, but `upstream/master` remains the technical base. Keeping visible UI branding separate from build and release identity lets the fork move in small steps, reduces build and packaging risk, and keeps upstream comparison easier. Collapsing all identity decisions into an incidental UI change would create avoidable review noise and make later rebases harder.
+
+Release identity must be decided separately before a public release. Open decisions include:
+
+- App/window title.
+- Executable or binary name.
+- Installer and package name.
+- Config and save directory naming, if separate naming is needed.
+- Icons and other identity assets.
+- Release artifact naming.
+
+Do not change release identity casually in gameplay, rules, compatibility, feature, addon, map, save, or balancing work. In particular, do not use a gameplay or rules PR to rename binaries, packages, installers, CMake targets, executable files, config directories, save directories, icons, assets, `GetTitle()`, or release artifacts. Those changes have different risk, validation, user-support, and upstream-sync costs, so they need their own scoped decision and review.
+
 ## Where Branding Does Not Belong
 
 Do not spread product branding into every internal implementation detail.

@@ -25,4 +25,5 @@ Chaos Edition should avoid mixing unrelated goals in the same change. A useful r
 
 - [Roadmap](docs/chaos-edition/ROADMAP.md)
 - [Upstream Policy](docs/chaos-edition/UPSTREAM_POLICY.md)
+- [Naming and Release Identity Boundary](docs/chaos-edition/NAMING.md)
 - [Feature Requirements](docs/chaos-edition/FEATURES.md)
