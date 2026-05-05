@@ -20,7 +20,8 @@ enum class FeatureId
     ExtendedVisuals,
     MapMetadataV1,
     CompatibilityPreviewStatus,
-    ToolOrderingDefaultEnabled
+    ToolOrderingDefaultEnabled,
+    AutomaticFlagPlacementDefaultEnabled
 };
 
 using FeatureList = std::vector<FeatureId>;
@@ -44,7 +45,7 @@ struct CompatibilityDecision
     const char* reasonKey;
 };
 
-inline constexpr std::array<FeatureDefinition, 7> KnownFeatureDefinitions = {{
+inline constexpr std::array<FeatureDefinition, 8> KnownFeatureDefinitions = {{
   {FeatureId::RulesProfile, "chaos.rules_profile", "metadata", true, false, true},
   {FeatureId::ExtendedContent, "chaos.extended_content", "reserved", false, false, false},
   {FeatureId::ExtendedAi, "chaos.extended_ai", "reserved", false, false, false},
@@ -52,9 +53,11 @@ inline constexpr std::array<FeatureDefinition, 7> KnownFeatureDefinitions = {{
   {FeatureId::MapMetadataV1, "chaos.map_metadata_v1", "reserved", false, false, false},
   {FeatureId::CompatibilityPreviewStatus, "chaos.ui.compatibility_preview_status", "ui", true, false, true},
   {FeatureId::ToolOrderingDefaultEnabled, "chaos.rules.tool_ordering_default_enabled", "rules", true, false, true},
+  {FeatureId::AutomaticFlagPlacementDefaultEnabled, "chaos.rules.automatic_flag_placement_default_enabled", "rules",
+   true, false, true},
 }};
 
-inline const std::array<FeatureDefinition, 7>& GetKnownFeatureDefinitions()
+inline const std::array<FeatureDefinition, 8>& GetKnownFeatureDefinitions()
 {
     return KnownFeatureDefinitions;
 }

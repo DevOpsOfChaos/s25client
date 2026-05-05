@@ -40,10 +40,13 @@ The authoritative in-code catalog is `chaos::KnownFeatureDefinitions` in `libs/s
 | `chaos.map_metadata_v1` | `reserved` | no | no | no | Reserved key. Known, but currently unsupported by every profile. |
 | `chaos.ui.compatibility_preview_status` | `ui` | yes | no | yes | Requires Chaos compatibility preview status support. |
 | `chaos.rules.tool_ordering_default_enabled` | `rules` | yes | no | yes | Requires the Chaos rules profile default that enables tool ordering. |
+| `chaos.rules.automatic_flag_placement_default_enabled` | `rules` | yes | no | yes | Requires the Chaos rules profile default that enables automatic flag placement. |
 
 RTTR-compatible currently supports no Chaos feature keys. Any `.chaos` sidecar that requires a Chaos-only key is incompatible with the RTTR-compatible profile.
 
 Reserved keys are intentionally known but unsupported. They are useful for planned capability names, but content must not require them until a profile explicitly supports them.
+
+Registered and supported rules keys describe behavior that is implemented by the selected profile. Reserved keys are only planned names and must stay separate from shipping content requirements until the in-code catalog marks a profile as supporting them.
 
 ## Sidecar Example
 

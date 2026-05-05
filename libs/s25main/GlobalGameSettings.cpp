@@ -188,7 +188,10 @@ void GlobalGameSettings::registerAddon(std::unique_ptr<Addon> addon)
 void GlobalGameSettings::applyRulesProfileDefaults(const RulesProfile rulesProfile)
 {
     if(IsChaosRulesProfile(rulesProfile))
+    {
         setSelection(AddonId::TOOL_ORDERING, 1);
+        setSelection(AddonId::AUTOFLAGS, 1);
+    }
 }
 
 /**

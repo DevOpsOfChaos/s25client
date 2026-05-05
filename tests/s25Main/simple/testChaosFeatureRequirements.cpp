@@ -57,6 +57,8 @@ BOOST_AUTO_TEST_CASE(FeatureIdsHaveStableKeys)
                == "chaos.ui.compatibility_preview_status");
     BOOST_TEST(chaos::ToStableFeatureKey(chaos::FeatureId::ToolOrderingDefaultEnabled)
                == "chaos.rules.tool_ordering_default_enabled");
+    BOOST_TEST(chaos::ToStableFeatureKey(chaos::FeatureId::AutomaticFlagPlacementDefaultEnabled)
+               == "chaos.rules.automatic_flag_placement_default_enabled");
 }
 
 BOOST_AUTO_TEST_CASE(FeatureDefinitionsHaveUniqueChaosPrefixedKeys)
@@ -92,6 +94,17 @@ BOOST_AUTO_TEST_CASE(ToolOrderingDefaultEnabledIsRegisteredCentralFeature)
     BOOST_TEST(definition->userFacing);
 }
 
+BOOST_AUTO_TEST_CASE(AutomaticFlagPlacementDefaultEnabledIsRegisteredCentralFeature)
+{
+    const chaos::FeatureDefinition* definition =
+      chaos::FindFeatureDefinition(chaos::FeatureId::AutomaticFlagPlacementDefaultEnabled);
+
+    BOOST_TEST_REQUIRE(definition != nullptr);
+    BOOST_TEST(definition->stableKey == std::string("chaos.rules.automatic_flag_placement_default_enabled"));
+    BOOST_TEST(definition->category == std::string("rules"));
+    BOOST_TEST(definition->userFacing);
+}
+
 BOOST_AUTO_TEST_CASE(ParserAcceptsEveryRegisteredFeatureKey)
 {
     for(const chaos::FeatureDefinition& definition : chaos::GetKnownFeatureDefinitions())
@@ -114,7 +127,8 @@ BOOST_AUTO_TEST_CASE(FeatureDefinitionsDeclareUserFacingSurface)
     {
         const bool expectedUserFacing = definition.id == chaos::FeatureId::RulesProfile
                                         || definition.id == chaos::FeatureId::CompatibilityPreviewStatus
-                                        || definition.id == chaos::FeatureId::ToolOrderingDefaultEnabled;
+                                        || definition.id == chaos::FeatureId::ToolOrderingDefaultEnabled
+                                        || definition.id == chaos::FeatureId::AutomaticFlagPlacementDefaultEnabled;
 
         BOOST_TEST(definition.userFacing == expectedUserFacing);
     }
@@ -126,10 +140,12 @@ BOOST_AUTO_TEST_CASE(CurrentSupportedFeaturesAreChaosOnlyAndMinimal)
     const auto chaosFeatures = chaos::GetSupportedFeatures(RulesProfile::Chaos);
 
     BOOST_TEST(rttrCompatibleFeatures.empty());
-    BOOST_TEST_REQUIRE(chaosFeatures.size() == 3u);
+    BOOST_TEST_REQUIRE(chaosFeatures.size() == 4u);
     BOOST_TEST(static_cast<int>(chaosFeatures[0]) == static_cast<int>(chaos::FeatureId::RulesProfile));
     BOOST_TEST(static_cast<int>(chaosFeatures[1]) == static_cast<int>(chaos::FeatureId::CompatibilityPreviewStatus));
     BOOST_TEST(static_cast<int>(chaosFeatures[2]) == static_cast<int>(chaos::FeatureId::ToolOrderingDefaultEnabled));
+    BOOST_TEST(static_cast<int>(chaosFeatures[3])
+               == static_cast<int>(chaos::FeatureId::AutomaticFlagPlacementDefaultEnabled));
 }
 
 BOOST_AUTO_TEST_CASE(ProfileSupportIsReadFromRegisteredFeatureDefinitions)
@@ -177,6 +193,52 @@ BOOST_AUTO_TEST_CASE(ToolOrderingDefaultDependsOnRulesProfile)
     BOOST_TEST(rttrCompatibleSettings.getSelection(AddonId::TOOL_ORDERING) == 0u);
     BOOST_TEST(chaosSettings.isEnabled(AddonId::TOOL_ORDERING));
     BOOST_TEST(chaosSettings.getSelection(AddonId::TOOL_ORDERING) == 1u);
+}
+
+BOOST_AUTO_TEST_CASE(AutomaticFlagPlacementDefaultEnabledRequirementIsAllowedForChaosProfile)
+{
+    const chaos::RequiredFeatures requiredFeatures = {chaos::FeatureId::AutomaticFlagPlacementDefaultEnabled};
+
+    const auto decision = chaos::EvaluateCompatibility(
+      RulesProfile::Chaos, chaos::GetSupportedFeatures(RulesProfile::Chaos), requiredFeatures);
+
+    BOOST_TEST(decision.allowed);
+    BOOST_TEST(decision.missingRequiredFeatures.empty());
+    BOOST_TEST(decision.reasonKey == "chaos.compatibility.allowed");
+}
+
+BOOST_AUTO_TEST_CASE(RttrCompatibleProfileDoesNotSupportAutomaticFlagPlacementDefaultEnabled)
+{
+    const chaos::RequiredFeatures requiredFeatures = {chaos::FeatureId::AutomaticFlagPlacementDefaultEnabled};
+    const chaos::SupportedFeatures supportedFeatures = {chaos::FeatureId::AutomaticFlagPlacementDefaultEnabled};
+
+    const auto decision =
+      chaos::EvaluateCompatibility(RulesProfile::RttrCompatible, supportedFeatures, requiredFeatures);
+
+    BOOST_TEST(!decision.allowed);
+    BOOST_TEST_REQUIRE(decision.missingRequiredFeatures.size() == 1u);
+    BOOST_TEST(static_cast<int>(decision.missingRequiredFeatures[0])
+               == static_cast<int>(chaos::FeatureId::AutomaticFlagPlacementDefaultEnabled));
+}
+
+BOOST_AUTO_TEST_CASE(AutomaticFlagPlacementDefaultDependsOnRulesProfile)
+{
+    const GlobalGameSettings rttrCompatibleSettings(RulesProfile::RttrCompatible);
+    const GlobalGameSettings chaosSettings(RulesProfile::Chaos);
+
+    BOOST_TEST(!rttrCompatibleSettings.isEnabled(AddonId::AUTOFLAGS));
+    BOOST_TEST(rttrCompatibleSettings.getSelection(AddonId::AUTOFLAGS) == 0u);
+    BOOST_TEST(chaosSettings.isEnabled(AddonId::AUTOFLAGS));
+    BOOST_TEST(chaosSettings.getSelection(AddonId::AUTOFLAGS) == 1u);
+}
+
+BOOST_AUTO_TEST_CASE(ExplicitAddonConfigurationOverridesChaosAutomaticFlagPlacementDefault)
+{
+    GlobalGameSettings settings(RulesProfile::Chaos);
+    settings.setSelection(AddonId::AUTOFLAGS, 0);
+
+    BOOST_TEST(!settings.isEnabled(AddonId::AUTOFLAGS));
+    BOOST_TEST(settings.getSelection(AddonId::AUTOFLAGS) == 0u);
 }
 
 BOOST_AUTO_TEST_CASE(MissingFeatureRequirementsAreDeterministicAndUnique)
