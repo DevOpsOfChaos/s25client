@@ -1,5 +1,7 @@
 # HD Graphics / Rendering Audit v1
 
+See [Visual Modernization Direction](VISUAL_DIRECTION.md) for the style boundary: Chaos Edition is pursuing modernized pixel-art presentation, not generic HD graphics.
+
 ## Executive summary
 
 Chaos Edition must keep HD graphics work local to presentation. It must not be modeled as a gameplay addon, because addons are part of `GlobalGameSettings`, are serialized, and are exchanged through network/replay/game setup paths. A graphics option that changes savegame content, map interpretation, global game settings, or command generation would be the wrong boundary.

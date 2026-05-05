@@ -27,3 +27,4 @@ Chaos Edition should avoid mixing unrelated goals in the same change. A useful r
 - [Upstream Policy](docs/chaos-edition/UPSTREAM_POLICY.md)
 - [Naming and Release Identity Boundary](docs/chaos-edition/NAMING.md)
 - [Feature Requirements](docs/chaos-edition/FEATURES.md)
+- [Visual Modernization Direction](docs/chaos-edition/VISUAL_DIRECTION.md)
