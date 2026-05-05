@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "ChaosCompatibilityMetadata.h"
 #include "ChaosCompatibilityStatus.h"
 
 #include <boost/test/unit_test.hpp>
+#include <set>
 #include <string>
 
 BOOST_AUTO_TEST_SUITE(ChaosFeatureRequirements)
@@ -53,6 +55,55 @@ BOOST_AUTO_TEST_CASE(FeatureIdsHaveStableKeys)
                == "chaos.ui.compatibility_preview_status");
 }
 
+BOOST_AUTO_TEST_CASE(FeatureDefinitionsHaveUniqueChaosPrefixedKeys)
+{
+    std::set<std::string> knownKeys;
+    for(const chaos::FeatureDefinition& definition : chaos::GetKnownFeatureDefinitions())
+    {
+        const std::string stableKey = definition.stableKey;
+        BOOST_TEST(stableKey.find("chaos.") == 0u);
+        BOOST_TEST(knownKeys.insert(stableKey).second);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(CompatibilityPreviewStatusIsRegisteredCentralFeature)
+{
+    const chaos::FeatureDefinition* definition =
+      chaos::FindFeatureDefinition(chaos::FeatureId::CompatibilityPreviewStatus);
+
+    BOOST_TEST_REQUIRE(definition != nullptr);
+    BOOST_TEST(definition->stableKey == std::string("chaos.ui.compatibility_preview_status"));
+    BOOST_TEST(definition->category == std::string("ui"));
+    BOOST_TEST(definition->userFacing);
+}
+
+BOOST_AUTO_TEST_CASE(ParserAcceptsEveryRegisteredFeatureKey)
+{
+    for(const chaos::FeatureDefinition& definition : chaos::GetKnownFeatureDefinitions())
+    {
+        chaos::RequiredFeatures requiredFeatures;
+        std::string error;
+
+        const bool parsed = chaos::ParseRequiredFeatures(definition.stableKey, requiredFeatures, error);
+
+        BOOST_TEST(parsed);
+        BOOST_TEST(error.empty());
+        BOOST_TEST_REQUIRE(requiredFeatures.size() == 1u);
+        BOOST_TEST(static_cast<int>(requiredFeatures[0]) == static_cast<int>(definition.id));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(FeatureDefinitionsDeclareUserFacingSurface)
+{
+    for(const chaos::FeatureDefinition& definition : chaos::GetKnownFeatureDefinitions())
+    {
+        const bool expectedUserFacing = definition.id == chaos::FeatureId::RulesProfile
+                                        || definition.id == chaos::FeatureId::CompatibilityPreviewStatus;
+
+        BOOST_TEST(definition.userFacing == expectedUserFacing);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(CurrentSupportedFeaturesAreChaosOnlyAndMinimal)
 {
     const auto rttrCompatibleFeatures = chaos::GetSupportedFeatures(RulesProfile::RttrCompatible);
@@ -62,6 +113,16 @@ BOOST_AUTO_TEST_CASE(CurrentSupportedFeaturesAreChaosOnlyAndMinimal)
     BOOST_TEST_REQUIRE(chaosFeatures.size() == 2u);
     BOOST_TEST(static_cast<int>(chaosFeatures[0]) == static_cast<int>(chaos::FeatureId::RulesProfile));
     BOOST_TEST(static_cast<int>(chaosFeatures[1]) == static_cast<int>(chaos::FeatureId::CompatibilityPreviewStatus));
+}
+
+BOOST_AUTO_TEST_CASE(ProfileSupportIsReadFromRegisteredFeatureDefinitions)
+{
+    const chaos::FeatureDefinition* definition =
+      chaos::FindFeatureDefinition(chaos::FeatureId::CompatibilityPreviewStatus);
+
+    BOOST_TEST_REQUIRE(definition != nullptr);
+    BOOST_TEST(chaos::IsFeatureSupportedByProfile(*definition, RulesProfile::Chaos));
+    BOOST_TEST(!chaos::IsFeatureSupportedByProfile(*definition, RulesProfile::RttrCompatible));
 }
 
 BOOST_AUTO_TEST_CASE(MissingFeatureRequirementsAreDeterministicAndUnique)

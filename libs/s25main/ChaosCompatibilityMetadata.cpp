@@ -79,18 +79,11 @@ bfs::path GetCompatibilityMetadataContentPath(const bfs::path& metadataPath)
 
 boost::optional<FeatureId> ParseFeatureId(const std::string& value)
 {
-    if(value == ToStableFeatureKey(FeatureId::RulesProfile))
-        return FeatureId::RulesProfile;
-    if(value == ToStableFeatureKey(FeatureId::ExtendedContent))
-        return FeatureId::ExtendedContent;
-    if(value == ToStableFeatureKey(FeatureId::ExtendedAi))
-        return FeatureId::ExtendedAi;
-    if(value == ToStableFeatureKey(FeatureId::ExtendedVisuals))
-        return FeatureId::ExtendedVisuals;
-    if(value == ToStableFeatureKey(FeatureId::MapMetadataV1))
-        return FeatureId::MapMetadataV1;
-    if(value == ToStableFeatureKey(FeatureId::CompatibilityPreviewStatus))
-        return FeatureId::CompatibilityPreviewStatus;
+    for(const FeatureDefinition& definition : GetKnownFeatureDefinitions())
+    {
+        if(value == definition.stableKey)
+            return definition.id;
+    }
     return boost::none;
 }
 

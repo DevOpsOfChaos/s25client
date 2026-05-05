@@ -102,12 +102,38 @@ int CreateMetadata(const bfs::path& contentPath, const std::string& rulesProfile
     return ExitSuccess;
 }
 
+std::string GetSupportedProfiles(const chaos::FeatureDefinition& definition)
+{
+    std::string profiles;
+    if(definition.supportedByRttrCompatible)
+        profiles += SerializeRulesProfile(RulesProfile::RttrCompatible);
+    if(definition.supportedByChaos)
+    {
+        if(!profiles.empty())
+            profiles += ",";
+        profiles += SerializeRulesProfile(RulesProfile::Chaos);
+    }
+    return profiles.empty() ? "none" : profiles;
+}
+
+int ListFeatures()
+{
+    bnw::cout << "key\tcategory\tsupportedProfiles\tuserFacing\n";
+    for(const chaos::FeatureDefinition& definition : chaos::GetKnownFeatureDefinitions())
+    {
+        bnw::cout << definition.stableKey << "\t" << definition.category << "\t" << GetSupportedProfiles(definition)
+                  << "\t" << (definition.userFacing ? "yes" : "no") << "\n";
+    }
+    return ExitSuccess;
+}
+
 void PrintHelp(const po::options_description& options)
 {
     bnw::cout << "Usage:\n";
     bnw::cout << "  chaos-metadata validate <content-or-chaos-path> [--rules-profile <profile>]\n";
     bnw::cout << "  chaos-metadata create <content-path> --rules-profile <profile> --required-features <features>"
                  " [--min-chaos-version <version>] [--overwrite]\n\n";
+    bnw::cout << "  chaos-metadata features\n\n";
     bnw::cout << options << "\n";
 }
 
@@ -118,7 +144,7 @@ int main(int argc, char** argv)
     bnw::args _(argc, argv);
 
     po::options_description options("Options");
-    options.add_options()("help,h", "show help")("command", po::value<std::string>(), "validate or create")(
+    options.add_options()("help,h", "show help")("command", po::value<std::string>(), "validate, create, or features")(
       "path", po::value<std::string>(), "content file or .chaos metadata path")(
       "rules-profile", po::value<std::string>()->default_value("chaos"), "rules profile: chaos or rttr-compatible")(
       "required-features", po::value<std::string>(), "comma-separated stable feature keys")(
@@ -140,13 +166,22 @@ int main(int argc, char** argv)
         return ExitInvalid;
     }
 
-    if(values.count("help") || !values.count("command") || !values.count("path"))
+    if(values.count("help") || !values.count("command"))
     {
         PrintHelp(options);
         return values.count("help") ? ExitSuccess : ExitInvalid;
     }
 
     const std::string command = values["command"].as<std::string>();
+    if(command == "features")
+        return ListFeatures();
+
+    if(!values.count("path"))
+    {
+        PrintHelp(options);
+        return ExitInvalid;
+    }
+
     const bfs::path path(values["path"].as<std::string>());
 
     RulesProfile rulesProfile;
