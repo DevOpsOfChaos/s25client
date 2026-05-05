@@ -6,6 +6,7 @@
 
 #include "DriverWrapper.h"
 #include "Point.h"
+#include "TextureFiltering.h"
 #include "driver/GuiScale.h"
 #include "driver/KeyEvent.h"
 #include "driver/VideoInterface.h"
@@ -52,6 +53,9 @@ public:
     unsigned GenerateTexture();
     void BindTexture(unsigned t);
     void DeleteTexture(unsigned t);
+    void SetConfiguredTextureFilter(unsigned t);
+    void SetTextureFilter(unsigned t, TextureFiltering filtering);
+    void UpdateConfiguredTextureFilters();
 
     IRenderer* GetRenderer() { return renderer_.get(); }
 
@@ -118,6 +122,7 @@ public:
 private:
     bool Initialize();
     bool setHwVSync(bool enabled);
+    void SetTextureFilter(unsigned t, TextureFiltering filtering, bool followsSettings);
 
     // lädt eine Funktion aus den Extensions
     void* loadExtension(const std::string& extension);
@@ -135,6 +140,7 @@ private:
     bool enableMouseWarping;
 
     std::vector<unsigned> texture_list;
+    std::set<unsigned> texturesFollowingSettingsFilter_;
     unsigned texture_current;
 };
 

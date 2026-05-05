@@ -6,6 +6,7 @@
 
 #include "DrawPoint.h"
 #include "RulesProfile.h"
+#include "TextureFiltering.h"
 #include "driver/VideoInterface.h"
 #include "driver/VideoMode.h"
 #include "s25util/ProxySettings.h"
@@ -88,6 +89,7 @@ public:
         DisplayMode displayMode;
         bool vbo;
         bool sharedTextures;
+        TextureFiltering textureFiltering;
         unsigned guiScale; ///< UI scaling in percent; 0 indicates automatic selection
     } video;
 

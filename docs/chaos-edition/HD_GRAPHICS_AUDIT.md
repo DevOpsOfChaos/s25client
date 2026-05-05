@@ -372,6 +372,17 @@ Recommended behavior:
 
 Validation for that future block should include visual screenshots at 100%, zoomed in, zoomed out, GUI scale auto/manual, shared textures on/off, VBO on/off, and both SDL2/WinAPI backends if available.
 
+### Implementation follow-up: local texture filtering v1
+
+Chaos Edition now has a local `Settings::video` texture filtering option with two modes:
+
+- `Pixel / sharp`: keeps the conservative default and maps settings-controlled texture uploads to nearest filtering.
+- `Smooth`: opt-in linear filtering for settings-controlled texture uploads.
+
+The option is stored only in local video settings (`CONFIG.INI` video section). It is not part of `GlobalGameSettings`, addons, savegames, network sync, replay metadata, `.chaos` metadata, compatibility gates, feature keys, or asset lookup/replacement.
+
+v1 applies centrally at OpenGL texture upload/filter assignment for regular archive bitmap textures that follow the video setting, `glSmartBitmap`, and packed shared textures from `glTexturePacker`. Existing explicit legacy smooth opt-ins, such as splash/minimap paths using `setInterpolateTexture(false)`, remain explicit smooth render behavior so the default does not regress prior presentation.
+
 ## Proposed staged roadmap
 
 ### Stage 1: Local texture filtering option

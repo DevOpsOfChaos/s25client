@@ -114,6 +114,7 @@ void Settings::LoadDefaults()
     video.framerate = 0; // Special value for HW vsync
     video.vbo = true;
     video.sharedTextures = SHARED_TEXTURES_DEFAULT;
+    video.textureFiltering = GetDefaultTextureFiltering();
     video.guiScale = 0; // special value indicating automatic selection
     // }
 
@@ -271,6 +272,13 @@ void Settings::Load()
         video.framerate = iniVideo->getValue("framerate", 0);
         video.vbo = iniVideo->getBoolValue("vbo");
         video.sharedTextures = iniVideo->getBoolValue("shared_textures");
+        const auto textureFiltering =
+          iniVideo->getValue("texture_filtering", static_cast<int>(GetDefaultTextureFiltering()));
+        if(textureFiltering >= 0
+           && static_cast<unsigned>(textureFiltering) <= helpers::MaxEnumValue_v<TextureFiltering>)
+            video.textureFiltering = static_cast<TextureFiltering>(textureFiltering);
+        else
+            video.textureFiltering = GetDefaultTextureFiltering();
         video.guiScale = iniVideo->getValue("gui_scale", 0);
         // };
 
@@ -479,6 +487,7 @@ void Settings::Save()
     iniVideo->setValue("framerate", video.framerate);
     iniVideo->setValue("vbo", video.vbo);
     iniVideo->setValue("shared_textures", video.sharedTextures);
+    iniVideo->setValue("texture_filtering", static_cast<int>(video.textureFiltering));
     iniVideo->setValue("gui_scale", video.guiScale);
     // };
 

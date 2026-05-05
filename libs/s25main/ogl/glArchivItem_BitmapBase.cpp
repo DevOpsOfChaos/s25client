@@ -4,6 +4,7 @@
 
 #include "glArchivItem_BitmapBase.h"
 #include "Loader.h"
+#include "TextureFiltering.h"
 #include "drivers/VideoDriverWrapper.h"
 #include <glad/glad.h>
 
@@ -84,9 +85,10 @@ void glArchivItem_BitmapBase::GenerateTexture()
 
     VIDEODRIVER.BindTexture(texture);
 
-    GLint filter = interpolateTexture_ ? GL_NEAREST : GL_LINEAR;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    if(interpolateTexture_)
+        VIDEODRIVER.SetConfiguredTextureFilter(texture);
+    else
+        VIDEODRIVER.SetTextureFilter(texture, TextureFiltering::Smooth);
 
     FillTexture();
 }

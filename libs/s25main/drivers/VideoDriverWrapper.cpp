@@ -5,6 +5,7 @@
 #include "VideoDriverWrapper.h"
 #include "FrameCounter.h"
 #include "RTTR_Version.h"
+#include "Settings.h"
 #include "WindowManager.h"
 #include "driver/VideoInterface.h"
 #include "helpers/containerUtils.h"
@@ -12,6 +13,7 @@
 #include "mygettext/mygettext.h"
 #include "ogl/DummyRenderer.h"
 #include "ogl/OpenGLRenderer.h"
+#include "ogl/TextureFilter.h"
 #include "openglCfg.hpp"
 #include "s25util/Log.h"
 #include "s25util/error.h"
@@ -185,6 +187,7 @@ void VideoDriverWrapper::CleanUp()
     {
         glDeleteTextures(texture_list.size(), static_cast<const GLuint*>(texture_list.data()));
         texture_list.clear();
+        texturesFollowingSettingsFilter_.clear();
     }
 }
 
@@ -222,6 +225,39 @@ void VideoDriverWrapper::DeleteTexture(unsigned t)
     {
         glDeleteTextures(1, &t);
         texture_list.erase(it);
+        texturesFollowingSettingsFilter_.erase(t);
+    }
+}
+
+void VideoDriverWrapper::SetConfiguredTextureFilter(unsigned t)
+{
+    SetTextureFilter(t, SETTINGS.video.textureFiltering, true);
+}
+
+void VideoDriverWrapper::SetTextureFilter(unsigned t, TextureFiltering filtering)
+{
+    SetTextureFilter(t, filtering, false);
+}
+
+void VideoDriverWrapper::SetTextureFilter(unsigned t, TextureFiltering filtering, bool followsSettings)
+{
+    if(!t)
+        return;
+
+    BindTexture(t);
+    ApplyTextureFilter(filtering);
+    if(followsSettings)
+        texturesFollowingSettingsFilter_.insert(t);
+    else
+        texturesFollowingSettingsFilter_.erase(t);
+}
+
+void VideoDriverWrapper::UpdateConfiguredTextureFilters()
+{
+    for(const unsigned texture : texturesFollowingSettingsFilter_)
+    {
+        BindTexture(texture);
+        ApplyTextureFilter(SETTINGS.video.textureFiltering);
     }
 }
 

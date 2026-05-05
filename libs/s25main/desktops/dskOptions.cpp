@@ -94,6 +94,8 @@ enum
     ID_txtVideoDriver,
     ID_cbVideoDriver,
     ID_grpOptTextures,
+    ID_txtTextureFiltering,
+    ID_cbTextureFiltering,
     ID_txtGuiScale,
     ID_cbGuiScale,
     ID_txtAudioDriver,
@@ -411,6 +413,15 @@ dskOptions::dskOptions() : Desktop(LOADER.GetImageN("setup013", 0))
     addOnOffOption(*groupGraphics, curPos, ID_grpOptTextures, _("Optimized Textures:"), SETTINGS.video.sharedTextures);
     curPos.y += rowHeight;
 
+    groupGraphics->AddText(ID_txtTextureFiltering, curPos, _("Texture filtering"), COLOR_YELLOW, FontStyle{},
+                           NormalFont);
+    combo = groupGraphics->AddComboBox(ID_cbTextureFiltering, curPos + ctrlOffset, ctrlSizeLarge, TextureColor::Grey,
+                                       NormalFont, 100);
+    combo->AddItem(_("Pixel / sharp"));
+    combo->AddItem(_("Smooth"));
+    combo->SetSelection(static_cast<unsigned>(SETTINGS.video.textureFiltering));
+    curPos.y += rowHeight;
+
     curPos.y += sectionSpacing;
     groupGraphics->AddText(ID_txtGuiScale, curPos, _("GUI Scale:"), COLOR_YELLOW, FontStyle{}, NormalFont);
     groupGraphics->AddComboBox(ID_cbGuiScale, curPos + ctrlOffset, ctrlSize, TextureColor::Grey, NormalFont, 100);
@@ -634,6 +645,10 @@ void dskOptions::Msg_Group_ComboSelectItem(const unsigned group_id, const unsign
             VIDEODRIVER.setTargetFramerate(SETTINGS.video.framerate);
             break;
         case ID_cbVideoDriver: SETTINGS.driver.video = combo->GetText(selection); break;
+        case ID_cbTextureFiltering:
+            SETTINGS.video.textureFiltering = static_cast<TextureFiltering>(selection);
+            VIDEODRIVER.UpdateConfiguredTextureFilters();
+            break;
         case ID_cbGuiScale:
             SETTINGS.video.guiScale = guiScales_[selection];
             VIDEODRIVER.setGuiScalePercent(SETTINGS.video.guiScale);
