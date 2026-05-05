@@ -60,4 +60,3 @@ Chaos Edition must not bundle, replace, or redistribute original game assets bli
 - Avoid broad formatting churn in files that will frequently receive upstream changes.
 - Document intentional divergence when it is introduced.
 - Do not use existing upstream PR branches as a workspace for Chaos Edition work.
-
