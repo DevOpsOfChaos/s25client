@@ -51,6 +51,14 @@ Improve menu, window, and in-game UI readability for modern display sizes and DP
 
 Investigate whether pixel-perfect or integer scaling can be implemented without breaking mouse mapping, zoom behavior, viewport logic, or normal window resizing. This should be treated as renderer and presentation work, not as an asset-pack task.
 
+The investigation starts with pure viewport math and documentation, not with a user-facing option. A future local option should only be exposed after the project has proven coordinate correctness for a centered integer-scaled presentation rectangle. The likely mode shape is:
+
+- `Auto`
+- `Integer / pixel-perfect`
+- `Free / current behavior`
+
+Texture filtering remains a separate local display preference. `Pixel / sharp` complements integer scaling, while `Smooth` intentionally softens texture sampling and must not be treated as a substitute for pixel-perfect presentation.
+
 ### Phase 4: Optional asset override layer with fallback
 
 Only consider a Chaos-specific asset override layer after the rendering and scaling foundation is stable and after fallback, precedence, packaging, and compatibility rules are documented. Any override path must fall back cleanly to existing assets.

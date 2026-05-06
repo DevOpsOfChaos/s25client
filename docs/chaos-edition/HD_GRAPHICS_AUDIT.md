@@ -174,6 +174,7 @@ This split is good enough for a local rendering option, but not clean enough for
   - Converts between view and screen coordinates.
 - `libs/driver/src/VideoDriver.cpp`
   - `SetNewSize()` computes DPI scale and `scaledRenderSize_`.
+  - Stores both the physical render size and the GUI-scaled render size.
   - `setGuiScalePercent()` changes local GUI scaling and triggers resize/mouse updates.
   - `getGuiScaleRange()` computes min/max/recommended GUI scale.
 - `libs/s25main/drivers/VideoDriverWrapper.cpp`
@@ -185,10 +186,15 @@ This split is good enough for a local rendering option, but not clean enough for
 
 `SETTINGS.video.guiScale` is local and persistent. It is not part of `GlobalGameSettings`.
 
+The important boundary is that GUI scale changes the UI/view coordinate space reported by `GetRenderSize()`. It is not world zoom. It changes how menu controls, windows, desktop surfaces, and ingame UI are laid out and hit-tested.
+
 ### Existing ingame zoom
 
 - `libs/s25main/desktops/dskGameInterface.cpp`
   - Defines zoom stepping via `ZOOM_FACTORS`, wheel zoom, and keyboard zoom shortcuts.
+  - `Msg_KeyDown()` handles keyboard zoom reset/in/out.
+  - `Msg_WheelUp()`, `Msg_WheelDown()`, and `WheelZoom()` handle wheel zoom.
+  - `Msg_MouseMove()` uses `GameWorldView::ViewPosToMap()` for grab-and-drag scrolling.
 - `libs/s25main/world/GameWorldView.{h,cpp}`
   - `zoomFactor_`, `targetZoomFactor_`, `effectiveZoomFactor_`, and `zoomSpeed_`.
   - `SetZoomFactor()`, `SetNextZoomFactor()`, `ViewPosToMap()`, `CalcFxLx()`, and `Draw()` handle local view zoom.
@@ -196,6 +202,25 @@ This split is good enough for a local rendering option, but not clean enough for
   - `updateEffectiveZoomFactor()` partially adjusts zoom using DPI/GUI scale.
 
 This is local view state. It should still be treated carefully because mouse-to-map conversion and command targeting depend on it.
+
+World zoom is therefore inside `dskGameInterface` and `GameWorldView`, not in `Settings::video`. It is a local presentation transform, but it feeds local command targeting through `selPt`, context clicks, road building, scrolling, and action-window placement.
+
+### Window, render, viewport, and input coupling
+
+Current coupling:
+
+- Backend drivers receive OS/window events and call `VideoDriver::SetNewSize(windowSize, renderSize)`.
+- `VideoDriver::SetNewSize()` computes `dpiScale_`, optionally recomputes automatic GUI scale, then stores `scaledRenderSize_ = guiScale_.screenToView(renderSize_)`.
+- `VideoDriverWrapper::GetRenderSize()` returns that GUI-scaled render size, not the raw framebuffer size.
+- `VideoDriverWrapper::GetWindowSize()` returns at least the minimum logical window size and is used by viewport/scissor setup.
+- `VideoDriverWrapper::RenewViewport()` sets `glViewport()` and `glScissor()` to the whole window, then sets an orthographic projection from `(0, 0)` to `GetRenderSize()`.
+- `WindowManager::Msg_ScreenResize()` and desktop/window resize handlers consume `GetRenderSize()`.
+- `VideoDriver::setGuiScalePercent()` converts the current mouse position through `GuiScale` before and after the scale change, then sends a fresh mouse-move event.
+- Mouse events are already in view coordinates when game/UI code sees `MouseCoords`.
+- `GameWorldView::Draw()` converts view coordinates to a scissored world area and separately adjusts mouse position when `effectiveZoomFactor_ != 1`.
+- `GameWorldView::ViewPosToMap()` mirrors the world zoom transform for map scrolling and selection logic.
+
+The current pipeline assumes one full-window viewport and one orthographic view coordinate system. An integer-scaled sub-viewport would break that assumption unless both drawing and input are transformed through the same presentation rectangle.
 
 ### Texture filtering v1 coverage
 
@@ -228,6 +253,44 @@ No explicit integer scaling or pixel-perfect viewport policy exists. The current
 
 Integer scaling is therefore not a small texture-filter toggle. A real implementation likely needs either viewport letterboxing, a render-to-texture presentation pass, or constrained zoom/scale transforms. That touches mouse coordinate mapping and screen-size behavior, so it should not be the first block.
 
+Chaos Edition now has an isolated calculation helper for future experiments:
+
+- `libs/s25main/helpers/IntegerScaling.{h,cpp}`
+  - `helpers::CalculateIntegerScaleViewport(sourceSize, targetSize)` returns the largest integer scale that fits and a centered viewport rectangle.
+  - It has no GL calls, no settings persistence, no UI, no driver side effects, and no mouse-coordinate changes.
+  - If the source or target is invalid, it returns a deterministic empty non-fitting result.
+  - If the target is too small for 1x, it returns scale `1`, marks `fits = false`, and uses the available target rectangle as a deterministic fallback.
+- `tests/s25Main/simple/testIntegerScaling.cpp`
+  - Covers exact 1x, 2x/3x fitting, lower-integer selection for non-integer targets, centering, tiny-window fallback, and zero dimensions.
+
+This helper is deliberately not an implementation of pixel-perfect scaling. It is only a tested place to harden the presentation math before touching viewport, render-to-texture, or input paths.
+
+### Later option shape
+
+A future local option should probably be:
+
+- `Auto`
+  - Conservative default once the implementation is proven. It may choose integer scaling when it fits cleanly and fall back to current behavior when it would create an unusable viewport.
+- `Integer / pixel-perfect`
+  - Forces integer presentation. It should expose letterboxing/clipping behavior clearly and must never alter simulation or synchronized game state.
+- `Free / current behavior`
+  - Keeps today's full-window orthographic behavior with arbitrary GUI scale and world zoom.
+
+Do not add this option until viewport/input tests and manual visual checks exist. Adding a setting before the path is proven would only create a compatibility promise around unfinished behavior.
+
+### Texture filtering interaction
+
+Texture filtering and integer scaling solve different problems:
+
+- Texture filtering chooses sampler behavior for texture uploads: nearest for `Pixel / sharp`, linear for `Smooth`.
+- Integer scaling chooses how a rendered source area is presented inside a target window/framebuffer.
+- `Pixel / sharp` plus integer scaling is the most faithful pixel-art path because it avoids both texture interpolation and fractional presentation scaling.
+- `Smooth` plus integer scaling is still valid as a local preference, but it intentionally softens texture samples even when the final presentation scale is integer.
+- `Smooth` does not make non-integer scaling pixel-perfect. It hides some artifacts but changes the look.
+- `Pixel / sharp` without integer scaling can still shimmer or show uneven pixel sizes under fractional presentation transforms.
+
+The first implementation should keep these as independent local video preferences unless testing proves that a combined preset is safer.
+
 ## Settings
 
 ### Local persistent settings
@@ -242,6 +305,7 @@ Local settings live in `Settings` and are persisted through `CONFIG.INI` and `In
   - `vbo`
   - `sharedTextures`
   - `guiScale`
+  - `textureFiltering`
 - `Settings::interface`
   - local interface behavior such as map scroll mode and window pinning.
 - `Settings::ingame`
@@ -249,7 +313,7 @@ Local settings live in `Settings` and are persisted through `CONFIG.INI` and `In
 - `Settings::windows`
   - local persistent ingame window placement/state.
 
-Good future location for a first rendering option:
+Good future location for local rendering options:
 
 - `Settings::video`, because texture filtering is presentation-only and belongs with `vbo`, `sharedTextures`, and `guiScale`.
 - `dskOptions` graphics tab for the main menu UI.
@@ -327,6 +391,9 @@ Avoid replacing original UI assets in early work.
 - `glArchivItem_BitmapBase`, `glSmartBitmap`, and `glTexturePacker` for texture filtering if changes are limited to OpenGL sampler state.
 - `GameWorldView` view zoom only for presentation behavior, with mouse mapping tests.
 - UI controls that draw `ITexture` without changing resource ids or game data.
+- Pure helper code that computes integer scale and viewport rectangles from source/target dimensions.
+- A later local presentation pass that maps a rendered image into a viewport, if mouse/event coordinates are transformed through the same rectangle.
+- Letterbox clear color and presentation-only viewport/scissor setup, if isolated from world simulation and resource loading.
 
 ### Risky synchronized/gameplay areas
 
@@ -337,6 +404,10 @@ Avoid replacing original UI assets in early work.
 - `TerrainRenderer` terrain selection, vertex generation based on world state, visibility, altitude, and road data.
 - Lua gamedata and `WorldDescription` content if used to alter terrain/object definitions.
 - `ArchiveLoader` / `ArchiveLocator` behavior if changing resource precedence or allowing new fallback directories.
+- Mouse-coordinate conversion in backend drivers or `WindowManager` unless covered by tests for UI hit testing, world selection, road building, scrolling, and window dragging.
+- Changing `GameWorldView::ViewPosToMap()` without matching draw-transform tests.
+- Constraining `ZOOM_FACTORS` to integer-looking values without proving that command targeting and visible-map bounds remain correct.
+- Using texture size helpers such as `calcPreferredTextureSize()` as presentation scaling policy. Power-of-two texture allocation is not a viewport policy.
 
 ### Files/classes that must not be touched for a first scaling/filter option
 
@@ -360,26 +431,52 @@ Avoid replacing original UI assets in early work.
 - Texture filtering must cover individual textures, smart bitmaps, and shared packed textures or the result will be inconsistent.
 - Changing terrain renderer data structures risks replay/network drift if it touches world-derived geometry or visibility updates rather than sampler state.
 - UI scaling and ingame zoom are related but separate; mixing them without tests will create hard-to-debug click/selection errors.
+- Letterboxing can make UI controls visually offset from their hit boxes if mouse coordinates remain full-window coordinates.
+- A render-to-texture pass can blur pixel art if the intermediate texture, final sampler, or viewport dimensions are not pinned to integer math.
+- Fullscreen and windowed paths may report different window/render sizes under DPI scaling, especially when GUI scale is automatic.
 
 ## Safe first step recommendation
 
-Implement a local texture filtering option first.
+Texture filtering v1 is already implemented. The next safe step is not a user-facing pixel-perfect toggle. It is a small local prototype that applies the tested integer viewport math to presentation only, behind developer-only code or a non-persistent experiment.
 
-Recommended behavior:
+Recommended first implementation candidate:
 
-- Store it only in `Settings::video`.
-- Expose it only in local graphics options.
-- Use clear modes:
-  - `Pixel / Sharp`: `GL_NEAREST`
-  - `Smooth`: `GL_LINEAR`
-- Apply it centrally when textures are created or uploaded:
-  - `glArchivItem_BitmapBase::GenerateTexture()`
-  - `glSmartBitmap::generateTexture()`
-  - `glTexture` / upload path in `glTexturePacker.cpp`
-- Force texture regeneration or apply filter parameters to already-created textures when the setting changes.
-- Do not alter resource ids, loaded archives, map data, game commands, or addon state.
+- Keep `helpers::CalculateIntegerScaleViewport()` as the pure calculation source.
+- Prototype a presentation rectangle either in `VideoDriverWrapper::RenewViewport()` or, more safely, in a render-to-texture presentation pass.
+- Prefer render-to-texture for a first real implementation if full-world and full-UI scaling must be pixel-perfect together; it creates one presentation boundary instead of making every draw path integer-aware.
+- If experimenting directly in viewport setup, transform mouse/window coordinates through the same viewport rectangle before UI and world code see them.
+- Keep `GameWorldView` world zoom unchanged at first. Do not combine world zoom changes with presentation scaling in the same patch.
+- Keep the option local-only under `Settings::video` only after tests prove the path. Do not use addons or `GlobalGameSettings`.
 
-Validation for that future block should include visual screenshots at 100%, zoomed in, zoomed out, GUI scale auto/manual, shared textures on/off, VBO on/off, and both SDL2/WinAPI backends if available.
+Required tests before enabling UI:
+
+- Pure helper tests for scale, centering, invalid dimensions, and too-small targets.
+- Driver-level tests for screen-to-view and view-to-screen translation with a non-origin presentation viewport.
+- UI hit tests for buttons, modal windows, dragging, snapping, and cursor hover in a letterboxed viewport.
+- `GameWorldView::ViewPosToMap()` tests for default, min, and max zoom with presentation viewport offsets.
+- Ingame integration tests for context click selection, road building, grab-and-drag scrolling, and action-window placement.
+- Resize tests covering windowed, fullscreen, automatic GUI scale, and fixed GUI scale.
+
+What must remain local-only:
+
+- Pixel-perfect/integer scaling mode.
+- Texture filtering mode.
+- GUI scale and DPI presentation behavior.
+- Any presentation viewport or letterbox state.
+- Manual visual-test preferences and screenshots.
+- No savegame, replay, network, map, addon, `.chaos` metadata, compatibility gate, or feature-key state.
+
+Manual visual test matrix for a future implementation:
+
+- Resolutions: 1280x720, 1920x1080, 2560x1440, 3840x2160.
+- Display mode: windowed and fullscreen.
+- GUI scale: normal and high.
+- World zoom: min, default, and max.
+- Texture filtering: `Pixel / sharp` and `Smooth`.
+- Shared textures: on and off.
+- VBO: on and off.
+- Backends: SDL2 and WinAPI when available.
+- Scenes: main menu, options graphics tab, loading screen, ingame map, dense buildings, moving workers, water/terrain edges, minimap, action windows, road-building overlay, productivity/name overlays, chat/settings windows, and pause overlay.
 
 ### Implementation follow-up: local texture filtering v1
 
@@ -416,13 +513,22 @@ Do not:
 
 Scope:
 
-- Prototype viewport/presentation math without committing to implementation.
-- Decide whether integer scaling belongs in viewport setup, `GameWorldView`, or a render-to-texture presentation pass.
-- Verify mouse-to-map and UI hit testing.
+- Keep pure integer viewport math in `helpers::CalculateIntegerScaleViewport()`.
+- Prototype presentation scaling without adding a persistent setting.
+- Decide between full-window viewport constraints and render-to-texture presentation.
+- Verify mouse-to-map, UI hit testing, scrolling, and resize behavior before any UI option exists.
+- Keep world zoom and GUI scale as separate concepts.
 
 Risk:
 
 - Medium. The hard part is not drawing pixels; it is keeping coordinates correct.
+
+Exit criteria:
+
+- The implementation path is chosen and documented.
+- Automated tests cover coordinate transforms for letterboxed viewports.
+- Manual screenshots prove crisp pixel-art behavior at the defined matrix.
+- The future UI option can be described as `Auto`, `Integer / pixel-perfect`, and `Free / current behavior` without ambiguity.
 
 ### Stage 3: UI HiDPI polish
 
@@ -477,4 +583,4 @@ Original/RTTR files and folders
 
 The codebase already has enough local rendering and settings structure for a small, safe HD-graphics first step. The uncomfortable part is that "HD graphics" as a broad concept is too vague and too asset-heavy. Treating it as an addon would couple presentation to synchronized gameplay state. Treating it as an asset replacement project first would create loader and compatibility risk before any user-visible scaling control exists.
 
-Start with local texture filtering. Then prove pixel-perfect/integer scaling separately. Only then consider UI polish and asset-pack mechanisms.
+Local texture filtering is the completed first step. Pixel-perfect/integer scaling should stay in investigation until the project proves the presentation rectangle and input mapping together. The first safe candidate is a local presentation-scaling prototype backed by `helpers::CalculateIntegerScaleViewport()`, followed by driver/UI/world-coordinate tests. Only then should Chaos Edition expose a persistent local video option.
