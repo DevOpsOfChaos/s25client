@@ -12,6 +12,7 @@
 #include "controls/ctrlComboBox.h"
 #include "controls/ctrlEdit.h"
 #include "controls/ctrlText.h"
+#include "desktops/dskIngameUiPreview.h"
 #include "desktops/dskMainMenu.h"
 #include "desktops/dskTextureTest.h"
 #include "dskBenchmark.h"
@@ -36,7 +37,8 @@ enum
     ID_txtTest,
     ID_cbTxtSize,
     ID_btHideCtrls,
-    ID_btShowBenchmark
+    ID_btShowBenchmark,
+    ID_btIngameUiPreview
 };
 }
 
@@ -104,6 +106,8 @@ dskTest::dskTest() : curBGIdx(LOAD_SCREENS.size())
                   NormalFont);
     AddTextButton(ID_btShowBenchmark, DrawPoint(720, 540), Extent(80, 22), TextureColor::Green1, "Benchmark",
                   NormalFont);
+    AddTextButton(ID_btIngameUiPreview, DrawPoint(625, 510), Extent(175, 22), TextureColor::Green1, "Ingame UI preview",
+                  NormalFont);
 }
 
 void dskTest::Msg_EditChange(const unsigned ctrl_id)
@@ -131,6 +135,7 @@ void dskTest::Msg_ButtonClick(const unsigned ctrl_id)
     {
         case ID_btTextureTest: WINDOWMANAGER.Switch(std::make_unique<dskTextureTest>()); break;
         case ID_btShowBenchmark: WINDOWMANAGER.Switch(std::make_unique<dskBenchmark>()); break;
+        case ID_btIngameUiPreview: WINDOWMANAGER.Switch(std::make_unique<dskIngameUiPreview>()); break;
         case ID_btDisable:
             for(unsigned i = ID_grpBtStart; i < ID_grpBtEnd; i++)
             {
@@ -184,7 +189,7 @@ bool dskTest::Msg_RightUp(const MouseCoords& mc)
 
 void dskTest::ToggleCtrlVisibility()
 {
-    for(int i = ID_txtTitle; i <= ID_btHideCtrls; i++)
+    for(int i = ID_txtTitle; i <= ID_btIngameUiPreview; i++)
     {
         auto* ctrl = GetCtrl<Window>(i);
         if(ctrl)
@@ -204,7 +209,9 @@ bool dskTest::Msg_KeyDown(const KeyEvent& ke)
     {
         curBGIdx = (curBGIdx < LOAD_SCREENS.size() - 1) ? curBGIdx + 1 : 0;
         background = LOADER.GetImageN(ResourceId(LOAD_SCREENS[curBGIdx]), 0);
-    } else if(ke.kt == KeyType::Escape)
+    } else if(ke.kt == KeyType::Char && ke.c == 'i')
+        WINDOWMANAGER.Switch(std::make_unique<dskIngameUiPreview>());
+    else if(ke.kt == KeyType::Escape)
         WINDOWMANAGER.Switch(std::make_unique<dskMainMenu>());
     else
         return false;

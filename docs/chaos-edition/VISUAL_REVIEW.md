@@ -68,6 +68,7 @@ For the next visible presentation/scaling prototype, review at least these scree
 
 - Main menu
 - Options -> Graphics
+- Developer Preview: Ingame UI Workbench
 - Map selection
 - In-game map view
 - mouse hover and click alignment on menu controls and ingame UI
@@ -103,21 +104,51 @@ Feedback should be concrete: resolution, display mode, GUI scale, filtering mode
 
 Commit only after visual approval or after confirming the change is non-visible, disabled, or developer-only.
 
-## Developer-Only Preview Concept
+## Developer-Only Ingame UI Preview Workbench
 
-A future presentation preview can be useful, but it must not be sold as normal product UI. It should be a local review/debug surface only.
+The ingame UI preview workbench is a local developer review surface only. It is not normal product UI and must not be
+described as a player-facing feature.
 
-The repository already has an internal developer test screen reachable by double-clicking the version text on the main menu, plus a texture test screen. That is a plausible future entry point for a presentation preview, but this workflow does not add one because a new screen would still be visible UI work and would require its own review.
+Start it from a devtools build:
 
-A future preview should show:
+```powershell
+cmake --build .\build-vs-x64-debug-local --config Debug --target s25client
+.\build-vs-x64-debug-local\Debug\s25client.exe
+```
 
-- side-by-side scaling/filtering states
-- checkerboard background, letterbox bars, sample sprite, sample text, and sample UI control
-- source size and target size
-- integer scale
-- viewport rectangle
-- top, right, bottom, and left margins
-- mapping active or fallback
-- texture filtering state and final-blit sampler state
+Navigation:
 
-Do not wire this into normal options, `Settings::video`, `CONFIG.INI`, addons, feature keys, compatibility metadata, assets, savegames, replays, network state, or gameplay logic.
+1. Open the main menu.
+2. Double-click the version text in the lower-left corner to open the internal developer test screen.
+3. Click `Ingame UI preview`, or press `i` on the developer test screen.
+4. Press `Esc` or click `Back` to return to the developer test screen.
+
+The workbench shows a static full-page ingame UI shell:
+
+- fake terrain/checker background for density and contrast review
+- top, bottom, left, and right ingame-style UI areas
+- representative status/action buttons
+- representative resource/status text
+- simulated minimap overlay placeholder
+- current preview size, GUI scale, and texture filtering labels
+
+It deliberately does not load a map, start simulation, open network/replay/save logic, use addons, or depend on
+`GlobalGameSettings`.
+
+When reviewing ingame UI changes in this workbench, check:
+
+- full page layout at the current default GUI scale
+- high GUI scale from Options -> Graphics, then re-enter the workbench
+- `1280x720` windowed
+- `1920x1080` windowed
+- texture filtering `Pixel / sharp`
+- texture filtering `Smooth`
+- clipped text
+- overlapping controls or labels
+- spacing and UI density
+- contrast against the fake game background
+- whether the result still reads as old pixel-art strategy UI rather than generic HD graphics
+
+Real product UI changes still need user visual approval. The workbench only makes that approval cheaper; it does not
+replace it. Do not wire the workbench into normal options, `Settings::video`, `CONFIG.INI`, addons, feature keys,
+compatibility metadata, assets, savegames, replays, network state, or gameplay logic.
