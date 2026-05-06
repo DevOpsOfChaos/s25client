@@ -129,4 +129,29 @@ IntegerScaleRectMapping MapSourceRectToTargetRect(const IntegerScaleViewport& sc
     return IntegerScaleRectMapping{true, MakeRect(left, top, width, height)};
 }
 
+IntegerPresentationPlan CalculateIntegerPresentationPlan(const Extent sourceSize, const Extent targetSize)
+{
+    const IntegerScaleViewport viewport = CalculateIntegerScaleViewport(sourceSize, targetSize);
+    IntegerPresentationLetterboxMargins margins{0u, 0u, 0u, 0u};
+
+    if(viewport.fits)
+    {
+        margins.left = static_cast<unsigned>(viewport.viewport.left);
+        margins.top = static_cast<unsigned>(viewport.viewport.top);
+        margins.right = targetSize.x - static_cast<unsigned>(viewport.viewport.right);
+        margins.bottom = targetSize.y - static_cast<unsigned>(viewport.viewport.bottom);
+    }
+
+    return IntegerPresentationPlan{sourceSize, targetSize, viewport, margins, viewport.fits};
+}
+
+IntegerScalePointMapping MapPresentationTargetPointToSourcePoint(const IntegerPresentationPlan& plan,
+                                                                 const Position targetPoint)
+{
+    if(!plan.mappingActive)
+        return IntegerScalePointMapping{false, Position(0, 0)};
+
+    return MapTargetPointToSourcePoint(plan.integerViewport, targetPoint);
+}
+
 } // namespace helpers

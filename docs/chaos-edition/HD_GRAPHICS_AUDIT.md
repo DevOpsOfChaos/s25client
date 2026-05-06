@@ -266,11 +266,37 @@ Chaos Edition now has an isolated calculation helper for future experiments:
   - `helpers::MapTargetPointToSourcePoint()` maps a target/window point to source/presentation coordinates only when the point is inside a fitting viewport.
   - `helpers::MapSourcePointToTargetPoint()` maps a source/presentation point to the target/window top-left pixel using the same origin and scale contract, and rejects source points on or beyond the source right/bottom boundary.
   - `helpers::MapSourceRectToTargetRect()` maps source rectangles to target rectangles using the same origin and scale contract, and rejects rectangles outside the declared source size.
+  - `helpers::CalculateIntegerPresentationPlan(sourceSize, targetSize)` wraps the viewport contract in a prototype presentation plan containing source size, target size, integer viewport, letterbox margins, and whether mapping is active.
+  - `helpers::MapPresentationTargetPointToSourcePoint()` deliberately delegates target-to-source mapping to the established integer viewport helper, so the prototype plan cannot drift into a second coordinate contract.
   - It has no GL calls, no settings persistence, no UI, no driver side effects, and no mouse-coordinate changes.
 - `tests/s25Main/simple/testIntegerScaling.cpp`
-  - Covers exact 1x, 2x/3x fitting, lower-integer selection for non-integer targets, even and odd centering, tiny-window fallback, zero dimensions, target-to-source mapping, source-to-target mapping, source-rectangle mapping, viewport boundary behavior, letterbox rejection, and reasonable large dimensions.
+  - Covers exact 1x, 2x/3x fitting, lower-integer selection for non-integer targets, even and odd centering, tiny-window fallback, zero dimensions, target-to-source mapping, source-to-target mapping, source-rectangle mapping, viewport boundary behavior, letterbox rejection, reasonable large dimensions, presentation-plan margins, GUI-scale-like target sizes, plan-level mapping, and plan-level fallback behavior.
 
 This helper is deliberately not an implementation of pixel-perfect scaling. It is only a tested place to harden the presentation math before touching viewport, render-to-texture, or input paths.
+
+### Integer presentation pass prototype v1
+
+The recommended future integration point is a final presentation boundary owned near `VideoDriverWrapper`, after normal world and UI drawing have completed and before `SwapBuffers()` presents the back buffer. The practical shape should be render-to-texture first: render the existing logical scene into a source-sized texture, then draw that texture into the calculated integer viewport inside the physical target window. That keeps the current `GetRenderSize()` and GUI layout contract intact while giving the presentation pass one rectangle to scale and one rectangle to use for input rejection/mapping.
+
+`VideoDriverWrapper::RenewViewport()` is a tempting place because it already calls `glViewport()`, `glScissor()`, and `glOrtho()`, but it is the wrong first place to change default behavior. It currently establishes the full-window projection used by every desktop, window, and ingame draw path. Turning it into a letterboxed integer viewport before a render-to-texture boundary exists would make visual coordinates and mouse hit coordinates disagree unless all input is transformed at the same time. For the prototype, `RenewViewport()` must remain unchanged.
+
+`VideoDriverWrapper::GetRenderSize()` should also remain unchanged. It currently returns the GUI-scaled logical render size consumed by desktop layout, `WindowManager`, ingame borders, and `GameWorldView`. Changing it to return the integer presentation viewport size would silently relayout UI and world views instead of merely presenting them differently.
+
+The existing `OpenGLRenderer` / `IRenderer` boundary is too narrow for the pass. It covers basic UI primitives, but most world, terrain, sprite, bitmap, and font drawing still happens through direct OpenGL-backed classes. A presentation pass should therefore sit outside those draw calls, not inside `IRenderer`, unless the renderer abstraction is first widened in a separate architecture patch.
+
+The pass should sit after GUI scale, not before it. GUI scale is already the source-layout mechanism: drivers convert physical mouse events to view coordinates, `GetRenderSize()` returns view size, and controls/windows/game UI are positioned in that view space. Integer presentation should scale the completed view-space image to the physical target. Placing integer scaling before GUI scale would mix two layout systems and would force every UI and world path to reason about letterbox offsets.
+
+World and UI should be scaled together for the first real implementation. Separate world/UI scaling sounds flexible but is strategically wrong for this codebase right now: ingame frame graphics, windows, overlays, cursor hover, minimap, action windows, and world selection all share the current view-coordinate system. Splitting the world from UI would create two presentation spaces and double the input/hitbox failure surface. A future split can be reconsidered only after a unified pass is proven.
+
+The prototype intentionally leaves these areas untouched:
+
+- `VideoDriverWrapper::RenewViewport()` default viewport/projection setup.
+- `VideoDriverWrapper::GetRenderSize()` logical view-size semantics.
+- `OpenGLRenderer` / `IRenderer` behavior.
+- GUI scale calculations and persistence.
+- `dskGameInterface`, `GameWorldView`, world zoom, and mouse-to-map logic.
+- Runtime mouse/input coordinates, hit testing, dragging, road building, minimap interaction, and cursor hover.
+- Savegame, replay, network, map, addon, `.chaos` metadata, compatibility gates, feature keys, assets, CMake, packaging, and binary identity.
 
 Future letterbox/input work should treat this helper as the single arithmetic contract:
 
@@ -292,11 +318,27 @@ The UI option remains premature because the hard part is not offering a checkbox
 
 Required future tests before renderer integration:
 
+- Presentation-plan tests for no-scaling, 2x/3x scaling, letterbox margins, target-to-source mapping, outside-letterbox rejection, GUI-scale-like target sizes, tiny-window fallback, and odd-leftover centering.
 - Driver-level target-to-view and view-to-target translation with non-zero letterbox origins.
 - UI hit tests for buttons, modal windows, dragging, snapping, cursor hover, and tooltip behavior inside a letterboxed viewport.
 - `GameWorldView::ViewPosToMap()` coverage with default, minimum, and maximum zoom after presentation-coordinate mapping.
 - Ingame interaction tests for context clicks, road building, grab-and-drag scrolling, action-window placement, minimap interaction, and resize events.
 - Visual and screenshot checks for windowed/fullscreen, automatic/fixed GUI scale, pixel/smooth filtering, shared textures on/off, VBO on/off, and SDL2/WinAPI backends where available.
+- Render-to-texture validation that verifies the intermediate texture dimensions, final sampler state, integer viewport, letterbox clear color, and screenshot pixel sharpness.
+
+Manual visual test matrix before activation:
+
+- Resolutions: 800x600, 1024x768, 1280x720, 1366x768, 1600x900, 1920x1080, 2560x1440, and 3840x2160.
+- Display mode: windowed and fullscreen.
+- GUI scale: automatic, 100%, recommended HiDPI, and a high fixed value.
+- World zoom: minimum, default, wheel-adjusted fractional value, and maximum.
+- Texture filtering: `Pixel / sharp` and `Smooth`.
+- Shared textures: on and off.
+- VBO: on and off.
+- Backends: SDL2 and WinAPI where available.
+- Scenes: splash, main menu, options graphics tab, loading screen, ingame map, dense buildings, moving workers, water/terrain edges, minimap, action windows, road-building overlay, productivity/name overlays, chat/settings windows, pause overlay, replay HUD, and resize during active scrolling.
+
+The texture-filtering interaction is simple but non-negotiable: the final presentation pass must not override the user's local texture filtering choice for source assets, and its own final blit must be explicit. `Pixel / sharp` plus integer presentation should use nearest sampling for the final blit. `Smooth` may still be valid as an opt-in local preference for source textures, but it is not a substitute for integer presentation and must not be marketed as pixel-perfect.
 
 ### Later option shape
 
@@ -470,20 +512,21 @@ Avoid replacing original UI assets in early work.
 
 ## Safe first step recommendation
 
-Texture filtering v1 is already implemented. The next safe step is not a user-facing pixel-perfect toggle. It is a small local prototype that applies the tested integer viewport math to presentation only, behind developer-only code or a non-persistent experiment.
+Texture filtering v1 is already implemented. The next safe step is not a user-facing pixel-perfect toggle. It is the pure presentation-planning prototype documented above. A later runtime experiment must remain developer-only or non-persistent until the required coordinate tests exist.
 
 Recommended first implementation candidate:
 
 - Keep `helpers::CalculateIntegerScaleViewport()` as the pure calculation source.
-- Prototype a presentation rectangle either in `VideoDriverWrapper::RenewViewport()` or, more safely, in a render-to-texture presentation pass.
-- Prefer render-to-texture for a first real implementation if full-world and full-UI scaling must be pixel-perfect together; it creates one presentation boundary instead of making every draw path integer-aware.
-- If experimenting directly in viewport setup, transform mouse/window coordinates through the same viewport rectangle before UI and world code see them.
+- Keep `helpers::CalculateIntegerPresentationPlan()` as the pure prototype contract for source/target size, letterbox margins, active mapping, and point mapping.
+- Prototype the first real presentation rectangle as a render-to-texture presentation pass owned near the frame boundary in `VideoDriverWrapper`.
+- Avoid changing `VideoDriverWrapper::RenewViewport()` until the offscreen source and target mapping contract is proven.
+- Transform mouse/window coordinates through the same presentation rectangle before UI and world code see them, but only after driver/UI/world-coordinate tests exist.
 - Keep `GameWorldView` world zoom unchanged at first. Do not combine world zoom changes with presentation scaling in the same patch.
 - Keep the option local-only under `Settings::video` only after tests prove the path. Do not use addons or `GlobalGameSettings`.
 
 Required tests before enabling UI:
 
-- Pure helper tests for scale, centering, invalid dimensions, and too-small targets.
+- Pure helper tests for scale, centering, invalid dimensions, too-small targets, presentation-plan margins, and plan-level mapping behavior.
 - Driver-level tests for screen-to-view and view-to-screen translation with a non-origin presentation viewport.
 - UI hit tests for buttons, modal windows, dragging, snapping, and cursor hover in a letterboxed viewport.
 - `GameWorldView::ViewPosToMap()` tests for default, min, and max zoom with presentation viewport offsets.
@@ -498,18 +541,6 @@ What must remain local-only:
 - Any presentation viewport or letterbox state.
 - Manual visual-test preferences and screenshots.
 - No savegame, replay, network, map, addon, `.chaos` metadata, compatibility gate, or feature-key state.
-
-Manual visual test matrix for a future implementation:
-
-- Resolutions: 1280x720, 1920x1080, 2560x1440, 3840x2160.
-- Display mode: windowed and fullscreen.
-- GUI scale: normal and high.
-- World zoom: min, default, and max.
-- Texture filtering: `Pixel / sharp` and `Smooth`.
-- Shared textures: on and off.
-- VBO: on and off.
-- Backends: SDL2 and WinAPI when available.
-- Scenes: main menu, options graphics tab, loading screen, ingame map, dense buildings, moving workers, water/terrain edges, minimap, action windows, road-building overlay, productivity/name overlays, chat/settings windows, and pause overlay.
 
 ### Implementation follow-up: local texture filtering v1
 

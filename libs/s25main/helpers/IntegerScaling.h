@@ -28,6 +28,23 @@ struct IntegerScaleRectMapping
     Rect rect;
 };
 
+struct IntegerPresentationLetterboxMargins
+{
+    unsigned left;
+    unsigned top;
+    unsigned right;
+    unsigned bottom;
+};
+
+struct IntegerPresentationPlan
+{
+    Extent sourceSize;
+    Extent targetSize;
+    IntegerScaleViewport integerViewport;
+    IntegerPresentationLetterboxMargins letterboxMargins;
+    bool mappingActive;
+};
+
 IntegerScaleViewport CalculateIntegerScaleViewport(Extent sourceSize, Extent targetSize);
 bool IsTargetPointInsideIntegerScaleViewport(const IntegerScaleViewport& scaling, Position targetPoint);
 IntegerScalePointMapping MapTargetPointToSourcePoint(const IntegerScaleViewport& scaling, Position targetPoint);
@@ -35,5 +52,9 @@ IntegerScalePointMapping MapSourcePointToTargetPoint(const IntegerScaleViewport&
                                                      Position sourcePoint);
 IntegerScaleRectMapping MapSourceRectToTargetRect(const IntegerScaleViewport& scaling, Extent sourceSize,
                                                   Rect sourceRect);
+
+IntegerPresentationPlan CalculateIntegerPresentationPlan(Extent sourceSize, Extent targetSize);
+IntegerScalePointMapping MapPresentationTargetPointToSourcePoint(const IntegerPresentationPlan& plan,
+                                                                 Position targetPoint);
 
 } // namespace helpers

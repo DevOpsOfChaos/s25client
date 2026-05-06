@@ -186,4 +186,107 @@ BOOST_AUTO_TEST_CASE(ReasonableLargeDimensionsAvoidOverflowProneMath)
     BOOST_TEST(point.point == Position(63996, 37996));
 }
 
+BOOST_AUTO_TEST_CASE(PresentationPlanNoScalingNeeded)
+{
+    const auto plan = helpers::CalculateIntegerPresentationPlan(Extent(800, 600), Extent(800, 600));
+
+    BOOST_TEST(plan.sourceSize == Extent(800, 600));
+    BOOST_TEST(plan.targetSize == Extent(800, 600));
+    BOOST_TEST(plan.mappingActive);
+    BOOST_TEST(plan.integerViewport.scale == 1u);
+    BOOST_TEST(plan.integerViewport.viewport == Rect(0, 0, 800, 600));
+    BOOST_TEST(plan.letterboxMargins.left == 0u);
+    BOOST_TEST(plan.letterboxMargins.top == 0u);
+    BOOST_TEST(plan.letterboxMargins.right == 0u);
+    BOOST_TEST(plan.letterboxMargins.bottom == 0u);
+}
+
+BOOST_AUTO_TEST_CASE(PresentationPlanTwoAndThreeXIntegerPresentation)
+{
+    const auto plan2x = helpers::CalculateIntegerPresentationPlan(Extent(640, 360), Extent(1280, 720));
+    BOOST_TEST(plan2x.mappingActive);
+    BOOST_TEST(plan2x.integerViewport.scale == 2u);
+    BOOST_TEST(plan2x.integerViewport.viewport == Rect(0, 0, 1280, 720));
+
+    const auto plan3x = helpers::CalculateIntegerPresentationPlan(Extent(640, 360), Extent(1920, 1080));
+    BOOST_TEST(plan3x.mappingActive);
+    BOOST_TEST(plan3x.integerViewport.scale == 3u);
+    BOOST_TEST(plan3x.integerViewport.viewport == Rect(0, 0, 1920, 1080));
+}
+
+BOOST_AUTO_TEST_CASE(PresentationPlanReportsLetterboxMargins)
+{
+    const auto plan = helpers::CalculateIntegerPresentationPlan(Extent(320, 200), Extent(1000, 700));
+
+    BOOST_TEST(plan.mappingActive);
+    BOOST_TEST(plan.integerViewport.scale == 3u);
+    BOOST_TEST(plan.integerViewport.viewport == Rect(20, 50, 960, 600));
+    BOOST_TEST(plan.letterboxMargins.left == 20u);
+    BOOST_TEST(plan.letterboxMargins.top == 50u);
+    BOOST_TEST(plan.letterboxMargins.right == 20u);
+    BOOST_TEST(plan.letterboxMargins.bottom == 50u);
+}
+
+BOOST_AUTO_TEST_CASE(PresentationPlanDelegatesTargetPointMapping)
+{
+    const auto plan = helpers::CalculateIntegerPresentationPlan(Extent(320, 200), Extent(1000, 700));
+
+    const auto mapping = helpers::MapPresentationTargetPointToSourcePoint(plan, Position(23, 56));
+
+    BOOST_TEST(mapping.inside);
+    BOOST_TEST(mapping.point == Position(1, 2));
+}
+
+BOOST_AUTO_TEST_CASE(PresentationPlanRejectsOutsideLetterboxPoint)
+{
+    const auto plan = helpers::CalculateIntegerPresentationPlan(Extent(320, 200), Extent(1000, 700));
+
+    const auto leftLetterbox = helpers::MapPresentationTargetPointToSourcePoint(plan, Position(19, 50));
+    const auto topLetterbox = helpers::MapPresentationTargetPointToSourcePoint(plan, Position(20, 49));
+
+    BOOST_TEST(!leftLetterbox.inside);
+    BOOST_TEST(leftLetterbox.point == Position(0, 0));
+    BOOST_TEST(!topLetterbox.inside);
+    BOOST_TEST(topLetterbox.point == Position(0, 0));
+}
+
+BOOST_AUTO_TEST_CASE(PresentationPlanHandlesGuiScaleLikeTargetSize)
+{
+    const auto plan = helpers::CalculateIntegerPresentationPlan(Extent(640, 360), Extent(1280, 720));
+
+    BOOST_TEST(plan.targetSize == Extent(1280, 720));
+    BOOST_TEST(plan.mappingActive);
+    BOOST_TEST(plan.integerViewport.scale == 2u);
+    BOOST_TEST(plan.integerViewport.viewport == Rect(0, 0, 1280, 720));
+    BOOST_TEST(helpers::MapPresentationTargetPointToSourcePoint(plan, Position(1279, 719)).point == Position(639, 359));
+}
+
+BOOST_AUTO_TEST_CASE(PresentationPlanTinyWindowFallbackDisablesMapping)
+{
+    const auto plan = helpers::CalculateIntegerPresentationPlan(Extent(800, 600), Extent(640, 480));
+
+    BOOST_TEST(!plan.mappingActive);
+    BOOST_TEST(!plan.integerViewport.fits);
+    BOOST_TEST(plan.integerViewport.scale == 1u);
+    BOOST_TEST(plan.integerViewport.viewport == Rect(0, 0, 640, 480));
+    BOOST_TEST(plan.letterboxMargins.left == 0u);
+    BOOST_TEST(plan.letterboxMargins.top == 0u);
+    BOOST_TEST(plan.letterboxMargins.right == 0u);
+    BOOST_TEST(plan.letterboxMargins.bottom == 0u);
+    BOOST_TEST(!helpers::MapPresentationTargetPointToSourcePoint(plan, Position(10, 10)).inside);
+}
+
+BOOST_AUTO_TEST_CASE(PresentationPlanOddLeftoversAreDeterministic)
+{
+    const auto plan = helpers::CalculateIntegerPresentationPlan(Extent(640, 360), Extent(1919, 1079));
+
+    BOOST_TEST(plan.mappingActive);
+    BOOST_TEST(plan.integerViewport.scale == 2u);
+    BOOST_TEST(plan.integerViewport.viewport == Rect(319, 179, 1280, 720));
+    BOOST_TEST(plan.letterboxMargins.left == 319u);
+    BOOST_TEST(plan.letterboxMargins.top == 179u);
+    BOOST_TEST(plan.letterboxMargins.right == 320u);
+    BOOST_TEST(plan.letterboxMargins.bottom == 180u);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
