@@ -154,4 +154,15 @@ IntegerScalePointMapping MapPresentationTargetPointToSourcePoint(const IntegerPr
     return MapTargetPointToSourcePoint(plan.integerViewport, targetPoint);
 }
 
+PresentationRenderTargetPlan CalculatePresentationRenderTargetPlan(const Extent sourceSize, const Extent targetSize,
+                                                                   const PresentationBoundaryCapabilities capabilities)
+{
+    const IntegerPresentationPlan integerPresentation = CalculateIntegerPresentationPlan(sourceSize, targetSize);
+    const bool renderTargetUsable = capabilities.textureRenderTargetAvailable && capabilities.presentationBlitAvailable
+                                    && integerPresentation.mappingActive;
+
+    return PresentationRenderTargetPlan{sourceSize,          targetSize,         capabilities,
+                                        integerPresentation, renderTargetUsable, !renderTargetUsable};
+}
+
 } // namespace helpers

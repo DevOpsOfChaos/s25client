@@ -45,6 +45,22 @@ struct IntegerPresentationPlan
     bool mappingActive;
 };
 
+struct PresentationBoundaryCapabilities
+{
+    bool textureRenderTargetAvailable;
+    bool presentationBlitAvailable;
+};
+
+struct PresentationRenderTargetPlan
+{
+    Extent sourceSize;
+    Extent targetSize;
+    PresentationBoundaryCapabilities capabilities;
+    IntegerPresentationPlan integerPresentation;
+    bool renderTargetUsable;
+    bool fallbackToDirectBackBuffer;
+};
+
 IntegerScaleViewport CalculateIntegerScaleViewport(Extent sourceSize, Extent targetSize);
 bool IsTargetPointInsideIntegerScaleViewport(const IntegerScaleViewport& scaling, Position targetPoint);
 IntegerScalePointMapping MapTargetPointToSourcePoint(const IntegerScaleViewport& scaling, Position targetPoint);
@@ -56,5 +72,7 @@ IntegerScaleRectMapping MapSourceRectToTargetRect(const IntegerScaleViewport& sc
 IntegerPresentationPlan CalculateIntegerPresentationPlan(Extent sourceSize, Extent targetSize);
 IntegerScalePointMapping MapPresentationTargetPointToSourcePoint(const IntegerPresentationPlan& plan,
                                                                  Position targetPoint);
+PresentationRenderTargetPlan CalculatePresentationRenderTargetPlan(Extent sourceSize, Extent targetSize,
+                                                                   PresentationBoundaryCapabilities capabilities);
 
 } // namespace helpers

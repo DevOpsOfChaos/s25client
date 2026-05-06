@@ -268,31 +268,85 @@ Chaos Edition now has an isolated calculation helper for future experiments:
   - `helpers::MapSourceRectToTargetRect()` maps source rectangles to target rectangles using the same origin and scale contract, and rejects rectangles outside the declared source size.
   - `helpers::CalculateIntegerPresentationPlan(sourceSize, targetSize)` wraps the viewport contract in a prototype presentation plan containing source size, target size, integer viewport, letterbox margins, and whether mapping is active.
   - `helpers::MapPresentationTargetPointToSourcePoint()` deliberately delegates target-to-source mapping to the established integer viewport helper, so the prototype plan cannot drift into a second coordinate contract.
+  - `helpers::PresentationBoundaryCapabilities` records whether a future boundary can use a texture render target and a final presentation blit.
+  - `helpers::CalculatePresentationRenderTargetPlan(sourceSize, targetSize, capabilities)` combines the integer presentation plan with those capabilities and reports whether a render-target seam is usable or must fall back to the current direct back-buffer path.
   - It has no GL calls, no settings persistence, no UI, no driver side effects, and no mouse-coordinate changes.
 - `tests/s25Main/simple/testIntegerScaling.cpp`
-  - Covers exact 1x, 2x/3x fitting, lower-integer selection for non-integer targets, even and odd centering, tiny-window fallback, zero dimensions, target-to-source mapping, source-to-target mapping, source-rectangle mapping, viewport boundary behavior, letterbox rejection, reasonable large dimensions, presentation-plan margins, GUI-scale-like target sizes, plan-level mapping, and plan-level fallback behavior.
+  - Covers exact 1x, 2x/3x fitting, lower-integer selection for non-integer targets, even and odd centering, tiny-window fallback, zero dimensions, target-to-source mapping, source-to-target mapping, source-rectangle mapping, viewport boundary behavior, letterbox rejection, reasonable large dimensions, presentation-plan margins, GUI-scale-like target sizes, plan-level mapping, render-target capability fallback, resize-like source/target changes, and plan-level fallback behavior.
 
 This helper is deliberately not an implementation of pixel-perfect scaling. It is only a tested place to harden the presentation math before touching viewport, render-to-texture, or input paths.
 
 ### Integer presentation pass prototype v1
 
-The recommended future integration point is a final presentation boundary owned near `VideoDriverWrapper`, after normal world and UI drawing have completed and before `SwapBuffers()` presents the back buffer. The practical shape should be render-to-texture first: render the existing logical scene into a source-sized texture, then draw that texture into the calculated integer viewport inside the physical target window. That keeps the current `GetRenderSize()` and GUI layout contract intact while giving the presentation pass one rectangle to scale and one rectangle to use for input rejection/mapping.
+The concrete audit confirms that the recommended future integration point is a final presentation boundary owned near `VideoDriverWrapper`, after normal world and UI drawing have completed and before `SwapBuffers()` presents the back buffer. The practical shape should be render-to-texture first: render the existing logical scene into a source-sized texture, then draw that texture into the calculated integer viewport inside the physical target window. That keeps the current `GetRenderSize()` and GUI layout contract intact while giving the presentation pass one rectangle to scale and one rectangle to use for input rejection/mapping.
 
-`VideoDriverWrapper::RenewViewport()` is a tempting place because it already calls `glViewport()`, `glScissor()`, and `glOrtho()`, but it is the wrong first place to change default behavior. It currently establishes the full-window projection used by every desktop, window, and ingame draw path. Turning it into a letterboxed integer viewport before a render-to-texture boundary exists would make visual coordinates and mouse hit coordinates disagree unless all input is transformed at the same time. For the prototype, `RenewViewport()` must remain unchanged.
+Final presentation boundary candidates:
 
-`VideoDriverWrapper::GetRenderSize()` should also remain unchanged. It currently returns the GUI-scaled logical render size consumed by desktop layout, `WindowManager`, ingame borders, and `GameWorldView`. Changing it to return the integer presentation viewport size would silently relayout UI and world views instead of merely presenting them differently.
+- Primary candidate: `VideoDriverWrapper::SwapBuffers()`. Normal frames call `GameManager::Run()` -> `ClearScreen()` -> `WindowManager::Draw()` -> `VideoDriverWrapper::SwapBuffers()`. This is the narrowest common hook before backend present and after world+UI drawing.
+- Backend present calls: `VideoSDL2::SwapBuffers()` calls `SDL_GL_SwapWindow(window)`, and `VideoWinAPI::SwapBuffers()` calls `::SwapBuffers(screen_dc)`. These should stay backend-only; putting presentation policy there would duplicate logic across drivers and hide it below the wrapper's frame limiter/FPS accounting.
+- Initialization edge: `VideoDriverWrapper::CreateScreen()` calls `RenewViewport()`, then `SwapBuffers()` once to show an empty buffer, then notifies `WindowManager` of the screen size. Any future seam must not assume a fully drawn frame exists for that first swap.
+- Transitional direct-swap paths: `GameClient::StartGame()`, `GameClient::SkipToGF()`, `GameClient::SaveToFile()`, and `iwPlayReplay::StartReplay()` draw a loading/moon/progress element and call `VIDEODRIVER.SwapBuffers()` directly. A wrapper-level seam would see these; a `GameManager::Run()`-only seam would miss them.
 
-The existing `OpenGLRenderer` / `IRenderer` boundary is too narrow for the pass. It covers basic UI primitives, but most world, terrain, sprite, bitmap, and font drawing still happens through direct OpenGL-backed classes. A presentation pass should therefore sit outside those draw calls, not inside `IRenderer`, unless the renderer abstraction is first widened in a separate architecture patch.
+Existing render-target/FBO status:
 
-The pass should sit after GUI scale, not before it. GUI scale is already the source-layout mechanism: drivers convert physical mouse events to view coordinates, `GetRenderSize()` returns view size, and controls/windows/game UI are positioned in that view space. Integer presentation should scale the completed view-space image to the physical target. Placing integer scaling before GUI scale would mix two layout systems and would force every UI and world path to reason about letterbox offsets.
+- No project-owned framebuffer/render-target abstraction was found in `libs`, `extras`, or `tests`.
+- No in-tree code currently calls `glGenFramebuffers`, `glBindFramebuffer`, `glFramebufferTexture*`, `glGenRenderbuffers`, or `glRenderbuffer*` outside the generated GL loader headers/sources.
+- Existing OpenGL texture creation is centered on `VideoDriverWrapper::GenerateTexture()`, `BindTexture()`, `DeleteTexture()`, `SetConfiguredTextureFilter()`, and upload sites in `glArchivItem_Bitmap*`, `glSmartBitmap`, and `glTexturePacker`.
+- Existing offscreen-adjacent behavior is readback only: `WindowManager::TakeScreenshot()` uses `glReadPixels()` from the current window back buffer. It is not an offscreen render path.
+- `IRenderer` / `OpenGLRenderer` is too narrow for this seam. It draws basic UI primitives, while terrain, sprites, fonts, bitmaps, and world rendering still use direct OpenGL paths.
 
-World and UI should be scaled together for the first real implementation. Separate world/UI scaling sounds flexible but is strategically wrong for this codebase right now: ingame frame graphics, windows, overlays, cursor hover, minimap, action windows, and world selection all share the current view-coordinate system. Splitting the world from UI would create two presentation spaces and double the input/hitbox failure surface. A future split can be reconsidered only after a unified pass is proven.
+Recommended first non-active seam:
+
+- Keep `helpers::CalculateIntegerScaleViewport()` and `helpers::CalculateIntegerPresentationPlan()` as the arithmetic source.
+- Use `PresentationBoundaryCapabilities` / `CalculatePresentationRenderTargetPlan()` as the non-active planning seam for the later wrapper-owned boundary.
+- Treat `textureRenderTargetAvailable == false` or `presentationBlitAvailable == false` as an explicit fallback to the current direct back-buffer path.
+- Keep this seam pure: no GL object creation, no driver calls, no settings, no input conversion, and no visible rendering behavior.
+
+Known hard blockers before activation:
+
+- There is no current FBO/render-target owner. A real prototype needs new lifecycle code for color texture allocation, framebuffer completeness, resize reallocation, binding restoration, and cleanup.
+- The current pipeline assumes a full-window viewport and a single orthographic coordinate system.
+- Mouse/input coordinates are already delivered in GUI-scaled view coordinates. Letterboxing needs target/window-to-source mapping before UI or world code consumes the event.
+- `GameWorldView::Draw()` sets its own scissor in screen coordinates and then restores the full-window scissor. A presentation pass must not let world scissor state leak into final blit state.
+- Direct swap callsites during start/save/replay/skip flows must either pass through the same wrapper seam or be explicitly excluded with known fallback behavior.
+- Screenshot readback currently captures the full window back buffer. Future letterboxing will need an explicit decision: capture physical back buffer including bars or source presentation image.
+
+Fallback behavior if render target is unavailable:
+
+- Keep the current direct back-buffer path unchanged.
+- Do not attempt integer letterboxing by changing `RenewViewport()`.
+- Do not change `GetRenderSize()` to fake a smaller logical scene.
+- Do not map input coordinates through an inactive or non-fitting plan.
+- Keep `PresentationRenderTargetPlan::fallbackToDirectBackBuffer` true whenever capability or size checks fail.
+
+Resize/fullscreen risks:
+
+- `VideoDriverWrapper::ResizeScreen()` delegates to the backend, then calls `WindowManager::WindowResized()`, which calls `RenewViewport()` and forwards `GetRenderSize()`.
+- SDL2 updates size state in `UpdateCurrentSizes()` and window resize events; fullscreen may choose a closest display mode or fall back to borderless/windowed.
+- WinAPI updates size state through `SetNewSize()` during explicit resize/fullscreen changes and through `WM_SIZE`.
+- A future render-target seam must reallocate or invalidate the intermediate texture whenever source or target size changes. Reusing stale dimensions would create either clipped output or blurred fractional presentation.
+- `MinWindowSize` and GUI scale can make logical render size differ from physical window size. That is exactly why changing `GetRenderSize()` is the wrong prototype path.
+
+Interaction with GUI scale:
+
+- GUI scale remains the source-layout mechanism. Drivers convert physical mouse events to view coordinates, `VideoDriver::SetNewSize()` computes `scaledRenderSize_`, and `VideoDriverWrapper::GetRenderSize()` returns that GUI-scaled logical size.
+- Integer presentation should sit after GUI scale and scale the completed view-space image into the physical target.
+- Placing integer scaling before GUI scale would mix two layout systems and force every UI and world path to know about letterbox offsets.
+- World and UI should be scaled together for the first real implementation. Splitting them early would create two presentation spaces and double the hitbox/selection failure surface.
+
+Interaction with texture filtering:
+
+- Source texture filtering remains controlled by the local Pixel/Smooth setting.
+- The final presentation blit must choose its own sampler explicitly. `Pixel / sharp` plus integer presentation should use nearest sampling for the final blit.
+- `Smooth` remains a local preference for source texture sampling. It is not pixel-perfect, and it must not be used as a substitute for integer presentation math.
+- The future render target texture should not silently inherit arbitrary sampler state from the last drawn source texture.
 
 The prototype intentionally leaves these areas untouched:
 
 - `VideoDriverWrapper::RenewViewport()` default viewport/projection setup.
 - `VideoDriverWrapper::GetRenderSize()` logical view-size semantics.
 - `OpenGLRenderer` / `IRenderer` behavior.
+- Backend `VideoSDL2::SwapBuffers()` and `VideoWinAPI::SwapBuffers()`.
 - GUI scale calculations and persistence.
 - `dskGameInterface`, `GameWorldView`, world zoom, and mouse-to-map logic.
 - Runtime mouse/input coordinates, hit testing, dragging, road building, minimap interaction, and cursor hover.
@@ -309,12 +363,13 @@ Still intentionally not implemented:
 
 - No renderer integration.
 - No render-to-texture presentation pass.
+- No GL framebuffer, renderbuffer, or presentation texture allocation.
 - No `VideoDriverWrapper::RenewViewport()` behavior change.
 - No runtime mouse-coordinate conversion.
 - No `GameWorldView`, `dskGameInterface`, or input-system changes.
 - No `Settings::video.integerScaling`, UI option, `CONFIG.INI` persistence, addon, feature key, `.chaos` metadata, savegame, network, replay, asset, CMake, packaging, or binary-identity change.
 
-The UI option remains premature because the hard part is not offering a checkbox. The hard part is proving that draw coordinates, window coordinates, source coordinates, GUI hit testing, world selection, road building, scrolling, and resize behavior all use the same presentation rectangle. Shipping a persistent option before that proof would create a user-visible compatibility promise around unfinished coordinate behavior.
+The UI option remains premature because the hard part is not offering a checkbox. The hard part is proving that draw coordinates, window coordinates, source coordinates, GUI hit testing, world selection, road building, scrolling, direct-swap loading states, screenshot readback, and resize behavior all use the same presentation rectangle. Shipping a persistent option before that proof would create a user-visible compatibility promise around unfinished coordinate behavior.
 
 Required future tests before renderer integration:
 

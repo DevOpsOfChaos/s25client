@@ -289,4 +289,78 @@ BOOST_AUTO_TEST_CASE(PresentationPlanOddLeftoversAreDeterministic)
     BOOST_TEST(plan.letterboxMargins.bottom == 180u);
 }
 
+BOOST_AUTO_TEST_CASE(PresentationRenderTargetPlanRequiresBothCapabilities)
+{
+    const helpers::PresentationBoundaryCapabilities supported{true, true};
+    const helpers::PresentationBoundaryCapabilities noRenderTarget{false, true};
+    const helpers::PresentationBoundaryCapabilities noPresentationBlit{true, false};
+
+    const auto supportedPlan =
+      helpers::CalculatePresentationRenderTargetPlan(Extent(640, 360), Extent(1280, 720), supported);
+    const auto noRenderTargetPlan =
+      helpers::CalculatePresentationRenderTargetPlan(Extent(640, 360), Extent(1280, 720), noRenderTarget);
+    const auto noPresentationBlitPlan =
+      helpers::CalculatePresentationRenderTargetPlan(Extent(640, 360), Extent(1280, 720), noPresentationBlit);
+
+    BOOST_TEST(supportedPlan.renderTargetUsable);
+    BOOST_TEST(!supportedPlan.fallbackToDirectBackBuffer);
+    BOOST_TEST(supportedPlan.integerPresentation.mappingActive);
+    BOOST_TEST(supportedPlan.integerPresentation.integerViewport.scale == 2u);
+
+    BOOST_TEST(!noRenderTargetPlan.renderTargetUsable);
+    BOOST_TEST(noRenderTargetPlan.fallbackToDirectBackBuffer);
+    BOOST_TEST(noRenderTargetPlan.integerPresentation.mappingActive);
+
+    BOOST_TEST(!noPresentationBlitPlan.renderTargetUsable);
+    BOOST_TEST(noPresentationBlitPlan.fallbackToDirectBackBuffer);
+    BOOST_TEST(noPresentationBlitPlan.integerPresentation.mappingActive);
+}
+
+BOOST_AUTO_TEST_CASE(PresentationRenderTargetPlanTracksResizeLikeSourceAndTargetChanges)
+{
+    const helpers::PresentationBoundaryCapabilities supported{true, true};
+
+    const auto windowedPlan =
+      helpers::CalculatePresentationRenderTargetPlan(Extent(640, 360), Extent(1600, 900), supported);
+    const auto resizedPlan =
+      helpers::CalculatePresentationRenderTargetPlan(Extent(800, 600), Extent(1920, 1080), supported);
+
+    BOOST_TEST(windowedPlan.sourceSize == Extent(640, 360));
+    BOOST_TEST(windowedPlan.targetSize == Extent(1600, 900));
+    BOOST_TEST(windowedPlan.renderTargetUsable);
+    BOOST_TEST(windowedPlan.integerPresentation.integerViewport.scale == 2u);
+    BOOST_TEST(windowedPlan.integerPresentation.integerViewport.viewport == Rect(160, 90, 1280, 720));
+
+    BOOST_TEST(resizedPlan.sourceSize == Extent(800, 600));
+    BOOST_TEST(resizedPlan.targetSize == Extent(1920, 1080));
+    BOOST_TEST(resizedPlan.renderTargetUsable);
+    BOOST_TEST(resizedPlan.integerPresentation.integerViewport.scale == 1u);
+    BOOST_TEST(resizedPlan.integerPresentation.integerViewport.viewport == Rect(560, 240, 800, 600));
+}
+
+BOOST_AUTO_TEST_CASE(PresentationRenderTargetPlanFallsBackWhenSourceOrTargetIsInvalid)
+{
+    const helpers::PresentationBoundaryCapabilities supported{true, true};
+
+    const auto invalidSource =
+      helpers::CalculatePresentationRenderTargetPlan(Extent(0, 360), Extent(1280, 720), supported);
+    const auto invalidTarget =
+      helpers::CalculatePresentationRenderTargetPlan(Extent(640, 360), Extent(0, 720), supported);
+    const auto tooSmallTarget =
+      helpers::CalculatePresentationRenderTargetPlan(Extent(800, 600), Extent(640, 480), supported);
+
+    BOOST_TEST(!invalidSource.renderTargetUsable);
+    BOOST_TEST(invalidSource.fallbackToDirectBackBuffer);
+    BOOST_TEST(!invalidSource.integerPresentation.mappingActive);
+
+    BOOST_TEST(!invalidTarget.renderTargetUsable);
+    BOOST_TEST(invalidTarget.fallbackToDirectBackBuffer);
+    BOOST_TEST(!invalidTarget.integerPresentation.mappingActive);
+
+    BOOST_TEST(!tooSmallTarget.renderTargetUsable);
+    BOOST_TEST(tooSmallTarget.fallbackToDirectBackBuffer);
+    BOOST_TEST(!tooSmallTarget.integerPresentation.mappingActive);
+    BOOST_TEST(tooSmallTarget.integerPresentation.integerViewport.viewport == Rect(0, 0, 640, 480));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
