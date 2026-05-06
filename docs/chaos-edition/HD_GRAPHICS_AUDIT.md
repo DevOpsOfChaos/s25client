@@ -257,13 +257,46 @@ Chaos Edition now has an isolated calculation helper for future experiments:
 
 - `libs/s25main/helpers/IntegerScaling.{h,cpp}`
   - `helpers::CalculateIntegerScaleViewport(sourceSize, targetSize)` returns the largest integer scale that fits and a centered viewport rectangle.
+  - The returned viewport follows the existing `Rect` convention: left/top are inside, right/bottom are outside.
+  - Centering is deterministic. Even leftovers split evenly; odd leftovers keep the extra pixel on the right/bottom side because the origin uses integer floor division.
+  - The helper rejects zero source or target dimensions with a deterministic empty, non-fitting result.
+  - If the target is too small for 1x, it returns scale `1`, marks `fits = false`, and uses the available target rectangle as a deterministic fallback when that rectangle is representable.
+  - Oversized dimensions that cannot be represented by the current signed `Rect` type are rejected with a deterministic empty, non-fitting result rather than relying on overflowing conversions.
+  - `helpers::IsTargetPointInsideIntegerScaleViewport()` checks whether a target/window point is inside the integer presentation rectangle and deliberately treats letterbox areas as outside.
+  - `helpers::MapTargetPointToSourcePoint()` maps a target/window point to source/presentation coordinates only when the point is inside a fitting viewport.
+  - `helpers::MapSourcePointToTargetPoint()` maps a source/presentation point to the target/window top-left pixel using the same origin and scale contract, and rejects source points on or beyond the source right/bottom boundary.
+  - `helpers::MapSourceRectToTargetRect()` maps source rectangles to target rectangles using the same origin and scale contract, and rejects rectangles outside the declared source size.
   - It has no GL calls, no settings persistence, no UI, no driver side effects, and no mouse-coordinate changes.
-  - If the source or target is invalid, it returns a deterministic empty non-fitting result.
-  - If the target is too small for 1x, it returns scale `1`, marks `fits = false`, and uses the available target rectangle as a deterministic fallback.
 - `tests/s25Main/simple/testIntegerScaling.cpp`
-  - Covers exact 1x, 2x/3x fitting, lower-integer selection for non-integer targets, centering, tiny-window fallback, and zero dimensions.
+  - Covers exact 1x, 2x/3x fitting, lower-integer selection for non-integer targets, even and odd centering, tiny-window fallback, zero dimensions, target-to-source mapping, source-to-target mapping, source-rectangle mapping, viewport boundary behavior, letterbox rejection, and reasonable large dimensions.
 
 This helper is deliberately not an implementation of pixel-perfect scaling. It is only a tested place to harden the presentation math before touching viewport, render-to-texture, or input paths.
+
+Future letterbox/input work should treat this helper as the single arithmetic contract:
+
+- Draw/presentation code should use the calculated viewport rectangle for the final integer-scaled image placement.
+- Input code should first reject points outside that viewport, then map target/window coordinates back to source/presentation coordinates through `MapTargetPointToSourcePoint()`.
+- Source-driven overlays or debug rectangles should use the source-to-target helpers so their origin and scale match the presentation pass exactly.
+- Fallback states with `fits = false` are not valid integer presentation states. They exist to make tiny or invalid dimensions deterministic, not to silently enable input mapping.
+
+Still intentionally not implemented:
+
+- No renderer integration.
+- No render-to-texture presentation pass.
+- No `VideoDriverWrapper::RenewViewport()` behavior change.
+- No runtime mouse-coordinate conversion.
+- No `GameWorldView`, `dskGameInterface`, or input-system changes.
+- No `Settings::video.integerScaling`, UI option, `CONFIG.INI` persistence, addon, feature key, `.chaos` metadata, savegame, network, replay, asset, CMake, packaging, or binary-identity change.
+
+The UI option remains premature because the hard part is not offering a checkbox. The hard part is proving that draw coordinates, window coordinates, source coordinates, GUI hit testing, world selection, road building, scrolling, and resize behavior all use the same presentation rectangle. Shipping a persistent option before that proof would create a user-visible compatibility promise around unfinished coordinate behavior.
+
+Required future tests before renderer integration:
+
+- Driver-level target-to-view and view-to-target translation with non-zero letterbox origins.
+- UI hit tests for buttons, modal windows, dragging, snapping, cursor hover, and tooltip behavior inside a letterboxed viewport.
+- `GameWorldView::ViewPosToMap()` coverage with default, minimum, and maximum zoom after presentation-coordinate mapping.
+- Ingame interaction tests for context clicks, road building, grab-and-drag scrolling, action-window placement, minimap interaction, and resize events.
+- Visual and screenshot checks for windowed/fullscreen, automatic/fixed GUI scale, pixel/smooth filtering, shared textures on/off, VBO on/off, and SDL2/WinAPI backends where available.
 
 ### Later option shape
 

@@ -16,6 +16,24 @@ struct IntegerScaleViewport
     bool fits;
 };
 
+struct IntegerScalePointMapping
+{
+    bool inside;
+    Position point;
+};
+
+struct IntegerScaleRectMapping
+{
+    bool inside;
+    Rect rect;
+};
+
 IntegerScaleViewport CalculateIntegerScaleViewport(Extent sourceSize, Extent targetSize);
+bool IsTargetPointInsideIntegerScaleViewport(const IntegerScaleViewport& scaling, Position targetPoint);
+IntegerScalePointMapping MapTargetPointToSourcePoint(const IntegerScaleViewport& scaling, Position targetPoint);
+IntegerScalePointMapping MapSourcePointToTargetPoint(const IntegerScaleViewport& scaling, Extent sourceSize,
+                                                     Position sourcePoint);
+IntegerScaleRectMapping MapSourceRectToTargetRect(const IntegerScaleViewport& scaling, Extent sourceSize,
+                                                  Rect sourceRect);
 
 } // namespace helpers
