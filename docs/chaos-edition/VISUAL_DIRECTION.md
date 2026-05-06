@@ -59,6 +59,8 @@ The investigation starts with pure viewport math and documentation, not with a u
 
 Texture filtering remains a separate local display preference. `Pixel / sharp` complements integer scaling, while `Smooth` intentionally softens texture sampling and must not be treated as a substitute for pixel-perfect presentation.
 
+Visible scaling or presentation prototypes must follow the [Chaos Visual Review Workflow](VISUAL_REVIEW.md) before they are committed as active runtime behavior.
+
 ### Phase 4: Optional asset override layer with fallback
 
 Only consider a Chaos-specific asset override layer after the rendering and scaling foundation is stable and after fallback, precedence, packaging, and compatibility rules are documented. Any override path must fall back cleanly to existing assets.

@@ -1,6 +1,6 @@
 # HD Graphics / Rendering Audit v1
 
-See [Visual Modernization Direction](VISUAL_DIRECTION.md) for the style boundary: Chaos Edition is pursuing modernized pixel-art presentation, not generic HD graphics.
+See [Visual Modernization Direction](VISUAL_DIRECTION.md) for the style boundary: Chaos Edition is pursuing modernized pixel-art presentation, not generic HD graphics. Visible presentation prototypes must also follow the [Chaos Visual Review Workflow](VISUAL_REVIEW.md).
 
 ## Executive summary
 
