@@ -81,7 +81,7 @@ void DrawDeveloperHudOverlay(const DeveloperHudViewModel& data, const Extent scr
     SmallFont->Draw(bottomPos + DrawPoint(14, 10), data.militarySummary, FontStyle{}, COLOR_YELLOW);
     SmallFont->Draw(DrawPoint(centerX - 70, height - 38), data.selectedSummary, FontStyle{}, COLOR_YELLOW);
 
-    DrawPoint resourcePos(width - 410, height - 44);
+    DrawPoint resourcePos(width - 590, height - 44);
     for(unsigned i = 0; i < data.resourceChips.size(); ++i)
     {
         const DeveloperHudResourceChip& chip = data.resourceChips[i];

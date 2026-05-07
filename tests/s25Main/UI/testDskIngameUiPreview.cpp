@@ -60,15 +60,19 @@ BOOST_FIXTURE_TEST_CASE(IngameUiPreviewWorkbenchConstructsDeveloperOnlyTogglePan
     BOOST_TEST(HasText(preview, "No legacy main/submenu wall"));
     BOOST_TEST(HasText(preview, "HUD data source: Static mock data"));
     BOOST_TEST(HasText(preview, "Compact chips: S 184 | Au 74 | Sw 38 | Msg 3"));
-    BOOST_TEST(HasText(preview, "Resources panel: Gold 74 | Swords 38 | Food 214 | Coins 1256"));
+    BOOST_TEST(
+      HasText(preview, "Resources panel: Gold 74 | Swords 38 | Food 214 | Coins 1256 | Boards 63 | Stones 47"));
     BOOST_TEST(HasText(preview, "Message lane: 3 unread post messages"));
     BOOST_TEST(HasText(preview, "Selected 44,52 | headquarters mock"));
     BOOST_TEST(HasText(preview, "Map 96x96 | read-only"));
-    BOOST_TEST(HasText(preview, "HUD export contract: 8 groups / 27 fields"));
-    BOOST_TEST(HasText(preview, "represented: resources, military, messages, selection, map, commands, economy"));
-    BOOST_TEST(HasText(preview, "Availability: resources.gold=mock"));
+    BOOST_TEST(HasText(preview, "HUD export contract: 8 groups / 30 fields"));
+    BOOST_TEST(
+      HasText(preview, "represented: player, military, resources, messages, selection, map, commands, economy"));
+    BOOST_TEST(HasText(preview, "Markers: Static mock data"));
+    BOOST_TEST(HasText(preview, "resources.gold=live-ready field"));
     BOOST_TEST(HasText(preview, "minimap.thumbnail=placeholder"));
-    BOOST_TEST(HasText(preview, "commands.dispatch=placeholder"));
+    BOOST_TEST(HasText(preview, "latest=not safely accessible yet"));
+    BOOST_TEST(HasText(preview, "command eligibility=not safely accessible yet"));
 
     BOOST_TEST(HasTextButton(preview, "1 Compact HUD"));
     BOOST_TEST(HasTextButton(preview, "2 Build/Roads"));
@@ -109,7 +113,8 @@ BOOST_FIXTURE_TEST_CASE(IngameUiPreviewWorkbenchSwitchesReducedTogglePanelStates
     BOOST_TEST(preview.Msg_KeyDown(KeyEvent('3')));
     BOOST_TEST(HasText(preview, "Active preview state: Toggle Panels: Military/Economy"));
     BOOST_TEST(HasText(preview, "Military panel uses military group"));
-    BOOST_TEST(HasText(preview, "Economy panel uses resources and economy groups"));
+    BOOST_TEST(HasText(preview, "status/capacity stay unavailable"));
+    BOOST_TEST(HasText(preview, "Economy panel uses resources group"));
     BOOST_TEST(HasText(preview, "No barracks, production, combat"));
     BOOST_TEST(HasTextButton(preview, "Readiness"));
     BOOST_TEST(HasTextButton(preview, "Resources"));
@@ -117,6 +122,7 @@ BOOST_FIXTURE_TEST_CASE(IngameUiPreviewWorkbenchSwitchesReducedTogglePanelStates
     BOOST_TEST(preview.Msg_KeyDown(KeyEvent('4')));
     BOOST_TEST(HasText(preview, "Active preview state: Messages + Minimap"));
     BOOST_TEST(HasText(preview, "Messages panel uses messages group"));
+    BOOST_TEST(HasText(preview, "latest message label is unavailable"));
     BOOST_TEST(HasText(preview, "Map panel uses map group"));
     BOOST_TEST(HasText(preview, "Zoom + / Zoom - / collapse / expand"));
     BOOST_TEST(HasText(preview, "No real map data"));

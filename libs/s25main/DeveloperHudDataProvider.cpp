@@ -45,7 +45,7 @@ std::string GetObjectLabel(const GO_Type objectType)
 
 DeveloperHudFieldAvailability GetSnapshotAvailability(const DeveloperHudSnapshot& snapshot)
 {
-    return snapshot.isLiveData ? DeveloperHudFieldAvailability::LiveReadOnly : DeveloperHudFieldAvailability::Mock;
+    return snapshot.isLiveData ? DeveloperHudFieldAvailability::LiveReadOnly : DeveloperHudFieldAvailability::LiveReady;
 }
 
 DeveloperHudDataField MakeField(const std::string& key, const std::string& label, const std::string& value,
@@ -68,6 +68,7 @@ std::string ToString(const DeveloperHudFieldAvailability availability)
     switch(availability)
     {
         case DeveloperHudFieldAvailability::LiveReadOnly: return "live read-only";
+        case DeveloperHudFieldAvailability::LiveReady: return "live-ready field";
         case DeveloperHudFieldAvailability::Mock: return "mock";
         case DeveloperHudFieldAvailability::Placeholder: return "placeholder";
         case DeveloperHudFieldAvailability::NotSafelyAccessible: return "not safely accessible yet";
@@ -91,7 +92,9 @@ DeveloperHudViewModel MakeDeveloperHudViewModel(const DeveloperHudSnapshot& snap
     viewModel.resourceChips = {{{"Au", "Gold", FormatCount(snapshot.gold)},
                                 {"Sw", "Swords", FormatCount(snapshot.swords)},
                                 {"Fd", "Food", FormatCount(snapshot.food)},
-                                {"Co", "Coins", FormatCount(snapshot.coins)}}};
+                                {"Co", "Coins", FormatCount(snapshot.coins)},
+                                {"Bd", "Boards", FormatCount(snapshot.boards)},
+                                {"St", "Stones", FormatCount(snapshot.stones)}}};
 
     viewModel.militarySummary =
       "Soldiers " + FormatCount(viewModel.totalSoldiers) + " | Ranks " + FormatCount(snapshot.soldiersByRank[0]) + "/"
@@ -122,37 +125,31 @@ DeveloperHudViewModel MakeDeveloperHudViewModel(const DeveloperHudSnapshot& snap
         MakeField("player.active.name", "Active player name", snapshot.playerName, primaryAvailability, source),
         MakeField("player.active.label", "HUD player label", viewModel.playerLabel, primaryAvailability, source)}},
       {"military",
-       "Soldier count / military status",
+       "Soldier count / military placeholders",
        {MakeField("military.soldiers.total", "Total soldiers", totalSoldiers, primaryAvailability, source),
         MakeField("military.soldiers.ranks", "Soldier ranks", soldierRanks, primaryAvailability, source),
         MakeField("military.soldiers.armored", "Armored soldiers", FormatCount(snapshot.armoredSoldiers),
                   primaryAvailability, source),
-        MakeField("military.status.label", "Military status label", snapshot.militaryStatusLabel,
-                  snapshot.militaryStatusLabel.empty() ? DeveloperHudFieldAvailability::Placeholder :
-                                                         primaryAvailability,
-                  snapshot.militaryStatusLabel.empty() ? "future military summary accessor" : source),
-        MakeField("military.capacity.used", "Military capacity used", FormatCount(snapshot.militaryCapacityUsed),
-                  snapshot.militaryCapacityMax == 0 ? DeveloperHudFieldAvailability::NotSafelyAccessible :
-                                                      primaryAvailability,
-                  snapshot.militaryCapacityMax == 0 ? "future military capacity accessor" : source),
-        MakeField("military.capacity.max", "Military capacity max", FormatCount(snapshot.militaryCapacityMax),
-                  snapshot.militaryCapacityMax == 0 ? DeveloperHudFieldAvailability::NotSafelyAccessible :
-                                                      primaryAvailability,
-                  snapshot.militaryCapacityMax == 0 ? "future military capacity accessor" : source)}},
+        MakeField("military.status.label", "Military status label", "not exported yet",
+                  DeveloperHudFieldAvailability::NotSafelyAccessible, "future military summary accessor"),
+        MakeField("military.capacity.used", "Military capacity used", "not exported yet",
+                  DeveloperHudFieldAvailability::NotSafelyAccessible, "future military capacity accessor"),
+        MakeField("military.capacity.max", "Military capacity max", "not exported yet",
+                  DeveloperHudFieldAvailability::NotSafelyAccessible, "future military capacity accessor")}},
       {"resources",
        "Important resources / wares",
        {MakeField("resources.gold", "Gold", FormatCount(snapshot.gold), primaryAvailability, source),
         MakeField("resources.coins", "Coins", FormatCount(snapshot.coins), primaryAvailability, source),
         MakeField("resources.swords", "Swords", FormatCount(snapshot.swords), primaryAvailability, source),
-        MakeField("resources.food", "Food", FormatCount(snapshot.food), primaryAvailability, source)}},
+        MakeField("resources.food", "Food", FormatCount(snapshot.food), primaryAvailability, source),
+        MakeField("resources.boards", "Boards", FormatCount(snapshot.boards), primaryAvailability, source),
+        MakeField("resources.stones", "Stones", FormatCount(snapshot.stones), primaryAvailability, source)}},
       {"messages",
        "Notification lane / post",
        {MakeField("messages.unread.count", "Unread message count", FormatCount(snapshot.messageCount),
                   primaryAvailability, source),
-        MakeField("messages.latest.label", "Latest message label", snapshot.latestMessageLabel,
-                  snapshot.latestMessageLabel.empty() ? DeveloperHudFieldAvailability::NotSafelyAccessible :
-                                                        primaryAvailability,
-                  snapshot.latestMessageLabel.empty() ? "future post message summary accessor" : source),
+        MakeField("messages.latest.label", "Latest message label", "not exported yet",
+                  DeveloperHudFieldAvailability::NotSafelyAccessible, "future post message summary accessor"),
         MakeField("messages.lane.text", "Message lane text", viewModel.messageLane, primaryAvailability, source)}},
       {"selection",
        "Selection / context panel",
@@ -173,8 +170,11 @@ DeveloperHudViewModel MakeDeveloperHudViewModel(const DeveloperHudSnapshot& snap
        "Command rail / quick actions",
        {MakeField("commands.rail.categories", "Command rail categories", "Build | Road | Military | Economy | Post",
                   DeveloperHudFieldAvailability::Placeholder, "developer UI contract"),
-        MakeField("commands.quick.build", "Build quick actions", "House | Road | Flag | Mine | Storehouse | Cancel",
-                  DeveloperHudFieldAvailability::Placeholder, "developer UI contract"),
+        MakeField("commands.quick.build.labels", "Build quick action labels",
+                  "House | Road | Flag | Mine | Storehouse | Cancel", DeveloperHudFieldAvailability::Placeholder,
+                  "developer UI contract"),
+        MakeField("commands.quick.build.eligibility", "Build quick action eligibility", "not exported yet",
+                  DeveloperHudFieldAvailability::NotSafelyAccessible, "future read-only action eligibility model"),
         MakeField("commands.dispatch", "Command dispatch", "disabled / no commands",
                   DeveloperHudFieldAvailability::Placeholder, "developer preview safety")}},
       {"economy",
@@ -203,14 +203,12 @@ DeveloperHudViewModel MockDeveloperHudDataProvider::GetViewModel() const
     snapshot.coins = 1256;
     snapshot.swords = 38;
     snapshot.food = 214;
+    snapshot.boards = 63;
+    snapshot.stones = 47;
     snapshot.messageCount = 3;
     snapshot.mapSize = MapExtent(96, 96);
     snapshot.selectedPoint = MapPoint(44, 52);
     snapshot.selectedObjectLabel = "headquarters mock";
-    snapshot.militaryStatusLabel = "Guarded";
-    snapshot.militaryCapacityUsed = 184;
-    snapshot.militaryCapacityMax = 240;
-    snapshot.latestMessageLabel = "Storehouse cannot receive any more wares";
     return MakeDeveloperHudViewModel(snapshot);
 }
 
@@ -239,6 +237,8 @@ DeveloperHudViewModel LiveDeveloperHudDataProvider::GetViewModel() const
     snapshot.coins = inventory[GoodType::Coins];
     snapshot.swords = inventory[GoodType::Sword];
     snapshot.food = inventory[GoodType::Fish] + inventory[GoodType::Bread] + inventory[GoodType::Meat];
+    snapshot.boards = inventory[GoodType::Boards];
+    snapshot.stones = inventory[GoodType::Stones];
     snapshot.messageCount = postBox_ ? postBox_->GetNumMsgs() : 0;
     snapshot.mapSize = viewer.GetWorld().GetSize();
     snapshot.selectedPoint = view_.GetSelectedPt();

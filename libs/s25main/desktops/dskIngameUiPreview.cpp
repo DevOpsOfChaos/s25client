@@ -129,8 +129,8 @@ const std::array<PreviewStateDefinition, static_cast<unsigned>(dskIngameUiPrevie
       U'3',
       "Toggle Panels: Military/Economy",
       {{"Developer Preview | Static mock data | Not product UI | No gameplay logic",
-        "Military panel uses military group: soldiers, ranks, readiness, capacity",
-        "Economy panel uses resources and economy groups: gold, swords, food, storage pressure",
+        "Military panel uses military group: soldiers, ranks, armor; status/capacity stay unavailable",
+        "Economy panel uses resources group: gold, swords, food, coins, boards, stones",
         "Important values are readable but intentionally small enough to keep the map dominant",
         "Mock fields are visible; unavailable economy summaries stay marked not safely accessible yet",
         "No barracks, production, combat, inventory mutation, or simulation logic is queried",
@@ -142,7 +142,7 @@ const std::array<PreviewStateDefinition, static_cast<unsigned>(dskIngameUiPrevie
       U'4',
       "Messages + Minimap",
       {{"Developer Preview | Static mock data | Not product UI | No gameplay logic",
-        "Messages panel uses messages group: unread count, latest label, compact mute control",
+        "Messages panel uses messages group: unread count; latest message label is unavailable",
         "Small toast preview is visible without becoming a blocking modal window",
         "Map panel uses map group: map size plus static minimap placeholder card",
         "Minimap placement previews bottom-left and top-left conflict zones in one reduced state",
@@ -489,16 +489,20 @@ void dskIngameUiPreview::UpdateDiagnostics()
       ->SetText("Resources panel: " + hudData_.resourceChips[0].label + " " + hudData_.resourceChips[0].value + " | "
                 + hudData_.resourceChips[1].label + " " + hudData_.resourceChips[1].value + " | "
                 + hudData_.resourceChips[2].label + " " + hudData_.resourceChips[2].value + " | "
-                + hudData_.resourceChips[3].label + " " + hudData_.resourceChips[3].value);
+                + hudData_.resourceChips[3].label + " " + hudData_.resourceChips[3].value + " | "
+                + hudData_.resourceChips[4].label + " " + hudData_.resourceChips[4].value + " | "
+                + hudData_.resourceChips[5].label + " " + hudData_.resourceChips[5].value);
     GetCtrl<ctrlText>(ID_txtHudMessageData)
       ->SetText(hudData_.messageLane + " | " + hudData_.selectedSummary + " | " + hudData_.mapSummary);
     GetCtrl<ctrlText>(ID_txtHudContractData)
       ->SetText(hudData_.developmentExportSummary
-                + " represented: resources, military, messages, selection, map, commands, economy");
+                + " represented: player, military, resources, messages, selection, map, commands, economy");
     GetCtrl<ctrlText>(ID_txtHudAvailabilityData)
-      ->SetText("Availability: resources.gold=" + GetAvailabilityLabel(hudData_, "resources", "resources.gold")
-                + " | minimap.thumbnail=" + GetAvailabilityLabel(hudData_, "map", "minimap.thumbnail")
-                + " | commands.dispatch=" + GetAvailabilityLabel(hudData_, "commands", "commands.dispatch"));
+      ->SetText("Markers: " + hudData_.sourceLabel
+                + " | resources.gold=" + GetAvailabilityLabel(hudData_, "resources", "resources.gold")
+                + " | minimap.thumbnail=" + GetAvailabilityLabel(hudData_, "map", "minimap.thumbnail") + " | latest="
+                + GetAvailabilityLabel(hudData_, "messages", "messages.latest.label") + " | command eligibility="
+                + GetAvailabilityLabel(hudData_, "commands", "commands.quick.build.eligibility"));
 }
 
 void dskIngameUiPreview::RefreshHudData()
@@ -628,7 +632,7 @@ void dskIngameUiPreview::DrawIngameShell() const
 
     const DrawPoint messagePos(centerX - 170, topBarTop + 8);
     DrawRectangle(Rect(messagePos, Extent(340, 22)), 0xCC4E4129);
-    SmallFont->Draw(messagePos + DrawPoint(12, 6), "Latest: " + hudData_.messageLane, FontStyle{}, COLOR_YELLOW);
+    SmallFont->Draw(messagePos + DrawPoint(12, 6), "Post: " + hudData_.messageLane, FontStyle{}, COLOR_YELLOW);
 
     DrawRectangle(Rect(DrawPoint(centerX - 260, bottomBarTop + 10), Extent(520, 38)), 0xBB2F2A1D);
     SmallFont->Draw(DrawPoint(centerX, bottomBarTop + 43), "toggle-panel bar / static preview only", FontStyle::CENTER,
@@ -686,7 +690,7 @@ void dskIngameUiPreview::DrawPreviewState() const
         {
             DrawClassicPanel(mainPanelPos, Extent(332, 178), "Military");
             SmallFont->Draw(mainPanelPos + DrawPoint(16, 42), hudData_.militarySummary, FontStyle{}, COLOR_YELLOW);
-            SmallFont->Draw(mainPanelPos + DrawPoint(16, 66), "Readiness: Guarded | Capacity 184/240", FontStyle{},
+            SmallFont->Draw(mainPanelPos + DrawPoint(16, 66), "Status/capacity: not safely accessible yet", FontStyle{},
                             COLOR_WARNING);
             DrawRectangle(Rect(mainPanelPos + DrawPoint(18, 94), Extent(290, 12)), 0xFF6D9B3C);
             DrawRectangle(Rect(mainPanelPos + DrawPoint(18, 118), Extent(70, 32)), 0xFF5B723A);
@@ -696,13 +700,14 @@ void dskIngameUiPreview::DrawPreviewState() const
             DrawClassicPanel(DrawPoint(mainPanelPos.x + 350, mainPanelPos.y), Extent(306, 178), "Economy / Resources");
             for(unsigned i = 0; i < hudData_.resourceChips.size(); ++i)
             {
-                const DrawPoint rowPos(mainPanelPos.x + 370, mainPanelPos.y + 44 + static_cast<int>(i) * 25);
-                DrawRectangle(Rect(rowPos, Extent(252, 18)), i % 2 == 0 ? 0xAA4A4029 : 0xAA3B3322);
+                const DrawPoint rowPos(mainPanelPos.x + 370 + static_cast<int>(i % 2) * 130,
+                                       mainPanelPos.y + 44 + static_cast<int>(i / 2) * 25);
+                DrawRectangle(Rect(rowPos, Extent(120, 18)), i % 2 == 0 ? 0xAA4A4029 : 0xAA3B3322);
                 SmallFont->Draw(rowPos + DrawPoint(10, 4),
                                 hudData_.resourceChips[i].label + "  " + hudData_.resourceChips[i].value, FontStyle{},
                                 COLOR_YELLOW);
             }
-            SmallFont->Draw(DrawPoint(mainPanelPos.x + 370, mainPanelPos.y + 150),
+            SmallFont->Draw(DrawPoint(mainPanelPos.x + 370, mainPanelPos.y + 130),
                             "Storage pressure: not safely accessible yet", FontStyle{}, COLOR_WARNING);
             break;
         }
@@ -711,11 +716,10 @@ void dskIngameUiPreview::DrawPreviewState() const
             DrawClassicPanel(DrawPoint(centerX - 270, topContent + 18), Extent(540, 126), "Messages");
             DrawRectangle(Rect(DrawPoint(centerX - 250, topContent + 52), Extent(500, 24)), 0xCC6D4D26);
             SmallFont->Draw(DrawPoint(centerX - 236, topContent + 58),
-                            "Toast: Storehouse cannot receive any more wares", FontStyle{}, COLOR_YELLOW);
+                            "Toast: latest message text not safely accessible yet", FontStyle{}, COLOR_WARNING);
             DrawChip(DrawPoint(centerX + 164, topContent + 54), Extent(64, 20), "Mute");
             SmallFont->Draw(DrawPoint(centerX - 236, topContent + 88),
-                            "Unread: " + std::to_string(hudData_.messageCount)
-                              + " | latest message label from messages group",
+                            "Unread: " + std::to_string(hudData_.messageCount) + " | latest label stays unavailable",
                             FontStyle{}, COLOR_YELLOW);
 
             DrawClassicPanel(DrawPoint(26, bottomBarTop - 174), Extent(210, 154), "Map bottom-left");
@@ -736,7 +740,7 @@ void dskIngameUiPreview::DrawPreviewState() const
                             COLOR_YELLOW);
             SmallFont->Draw(DrawPoint(centerX - 226, topContent + 116),
                             "Inventory snippets: Gold " + hudData_.resourceChips[0].value + " | Swords "
-                              + hudData_.resourceChips[1].value + " | Food " + hudData_.resourceChips[2].value,
+                              + hudData_.resourceChips[1].value + " | Boards " + hudData_.resourceChips[4].value,
                             FontStyle{}, COLOR_YELLOW);
             const std::array<const char*, 8> contextActions = {
               {"View", "Center", "Goods", "Workers", "Pin", "Close", "Upgrade", "Stop"}};

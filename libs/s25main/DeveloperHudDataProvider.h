@@ -23,6 +23,7 @@ struct DeveloperHudResourceChip
 enum class DeveloperHudFieldAvailability
 {
     LiveReadOnly,
+    LiveReady,
     Mock,
     Placeholder,
     NotSafelyAccessible
@@ -56,14 +57,12 @@ struct DeveloperHudSnapshot
     unsigned coins = 0;
     unsigned swords = 0;
     unsigned food = 0;
+    unsigned boards = 0;
+    unsigned stones = 0;
     unsigned messageCount = 0;
     MapExtent mapSize = MapExtent(0, 0);
     MapPoint selectedPoint = MapPoint::Invalid();
     std::string selectedObjectLabel;
-    std::string militaryStatusLabel;
-    unsigned militaryCapacityUsed = 0;
-    unsigned militaryCapacityMax = 0;
-    std::string latestMessageLabel;
 };
 
 struct DeveloperHudViewModel
@@ -72,7 +71,7 @@ struct DeveloperHudViewModel
     std::string sourceLabel;
     std::string playerLabel;
     std::array<std::string, 5> topBarChips = {};
-    std::array<DeveloperHudResourceChip, 4> resourceChips = {};
+    std::array<DeveloperHudResourceChip, 6> resourceChips = {};
     std::string militarySummary;
     std::string messageLane;
     std::string selectedSummary;

@@ -5,6 +5,8 @@
 #include "DeveloperHudDataProvider.h"
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
+#include <array>
+#include <utility>
 
 namespace {
 const DeveloperHudDataGroup* FindGroup(const DeveloperHudViewModel& data, const std::string& key)
@@ -19,6 +21,21 @@ const DeveloperHudDataField* FindField(const DeveloperHudDataGroup& group, const
     const auto fieldIt = std::find_if(group.fields.begin(), group.fields.end(),
                                       [&key](const DeveloperHudDataField& field) { return field.key == key; });
     return fieldIt == group.fields.end() ? nullptr : &*fieldIt;
+}
+
+const DeveloperHudDataField* FindField(const DeveloperHudViewModel& data, const std::string& groupKey,
+                                       const std::string& fieldKey)
+{
+    const DeveloperHudDataGroup* group = FindGroup(data, groupKey);
+    return group ? FindField(*group, fieldKey) : nullptr;
+}
+
+void CheckAvailability(const DeveloperHudViewModel& data, const std::string& groupKey, const std::string& fieldKey,
+                       const DeveloperHudFieldAvailability expected)
+{
+    const DeveloperHudDataField* field = FindField(data, groupKey, fieldKey);
+    BOOST_TEST_REQUIRE(field);
+    BOOST_TEST(static_cast<int>(field->availability) == static_cast<int>(expected));
 }
 } // namespace
 
@@ -38,9 +55,12 @@ BOOST_AUTO_TEST_CASE(MockDeveloperHudDataProviderBuildsCompactOverlayData)
     BOOST_TEST(data.resourceChips[0].label == "Gold");
     BOOST_TEST(data.resourceChips[1].label == "Swords");
     BOOST_TEST(data.resourceChips[2].label == "Food");
+    BOOST_TEST(data.resourceChips[3].label == "Coins");
+    BOOST_TEST(data.resourceChips[4].label == "Boards");
+    BOOST_TEST(data.resourceChips[5].label == "Stones");
     BOOST_TEST(data.messageLane == "Message lane: 3 unread post messages");
     BOOST_TEST(data.selectedSummary.find("headquarters mock") != std::string::npos);
-    BOOST_TEST(data.developmentExportSummary == "HUD export contract: 8 groups / 27 fields");
+    BOOST_TEST(data.developmentExportSummary == "HUD export contract: 8 groups / 30 fields");
     BOOST_TEST_REQUIRE(FindGroup(data, "player"));
     BOOST_TEST_REQUIRE(FindGroup(data, "military"));
     BOOST_TEST_REQUIRE(FindGroup(data, "resources"));
@@ -54,8 +74,9 @@ BOOST_AUTO_TEST_CASE(MockDeveloperHudDataProviderBuildsCompactOverlayData)
     BOOST_TEST_REQUIRE(militaryGroup);
     const DeveloperHudDataField* militaryStatus = FindField(*militaryGroup, "military.status.label");
     BOOST_TEST_REQUIRE(militaryStatus);
-    BOOST_TEST(militaryStatus->value == "Guarded");
-    BOOST_TEST(static_cast<int>(militaryStatus->availability) == static_cast<int>(DeveloperHudFieldAvailability::Mock));
+    BOOST_TEST(militaryStatus->value == "not exported yet");
+    BOOST_TEST(static_cast<int>(militaryStatus->availability)
+               == static_cast<int>(DeveloperHudFieldAvailability::NotSafelyAccessible));
 
     const DeveloperHudDataGroup* commandGroup = FindGroup(data, "commands");
     BOOST_TEST_REQUIRE(commandGroup);
@@ -64,6 +85,32 @@ BOOST_AUTO_TEST_CASE(MockDeveloperHudDataProviderBuildsCompactOverlayData)
     BOOST_TEST(commandDispatch->value == "disabled / no commands");
     BOOST_TEST(static_cast<int>(commandDispatch->availability)
                == static_cast<int>(DeveloperHudFieldAvailability::Placeholder));
+
+    const std::array<std::pair<const char*, const char*>, 15> liveReadyFields = {
+      {{"player", "player.active.id"},
+       {"player", "player.active.name"},
+       {"player", "player.active.label"},
+       {"military", "military.soldiers.total"},
+       {"military", "military.soldiers.ranks"},
+       {"military", "military.soldiers.armored"},
+       {"resources", "resources.gold"},
+       {"resources", "resources.coins"},
+       {"resources", "resources.swords"},
+       {"resources", "resources.food"},
+       {"resources", "resources.boards"},
+       {"resources", "resources.stones"},
+       {"messages", "messages.unread.count"},
+       {"selection", "selection.map.point"},
+       {"map", "map.size"}}};
+    for(const auto& field : liveReadyFields)
+        CheckAvailability(data, field.first, field.second, DeveloperHudFieldAvailability::LiveReady);
+
+    CheckAvailability(data, "military", "military.capacity.used", DeveloperHudFieldAvailability::NotSafelyAccessible);
+    CheckAvailability(data, "military", "military.capacity.max", DeveloperHudFieldAvailability::NotSafelyAccessible);
+    CheckAvailability(data, "messages", "messages.latest.label", DeveloperHudFieldAvailability::NotSafelyAccessible);
+    CheckAvailability(data, "economy", "economy.storage.pressure", DeveloperHudFieldAvailability::NotSafelyAccessible);
+    CheckAvailability(data, "commands", "commands.quick.build.eligibility",
+                      DeveloperHudFieldAvailability::NotSafelyAccessible);
 }
 
 BOOST_AUTO_TEST_CASE(DeveloperHudViewModelFormatsLiveSnapshotReadOnlyFields)
@@ -79,6 +126,8 @@ BOOST_AUTO_TEST_CASE(DeveloperHudViewModelFormatsLiveSnapshotReadOnlyFields)
     snapshot.coins = 8;
     snapshot.swords = 9;
     snapshot.food = 10;
+    snapshot.boards = 11;
+    snapshot.stones = 12;
     snapshot.messageCount = 0;
     snapshot.mapSize = MapExtent(64, 48);
     snapshot.selectedPoint = MapPoint::Invalid();
@@ -92,11 +141,34 @@ BOOST_AUTO_TEST_CASE(DeveloperHudViewModelFormatsLiveSnapshotReadOnlyFields)
     BOOST_TEST(data.topBarChips[2] == "Au 7");
     BOOST_TEST(data.topBarChips[3] == "Sw 9");
     BOOST_TEST(data.resourceChips[2].value == "10");
+    BOOST_TEST(data.resourceChips[4].value == "11");
+    BOOST_TEST(data.resourceChips[5].value == "12");
     BOOST_TEST(data.militarySummary == "Soldiers 15 | Ranks 1/2/3/4/5 | Armor 6");
     BOOST_TEST(data.messageLane == "Message lane: no unread post messages");
     BOOST_TEST(data.mapSummary == "Map 64x48 | read-only");
     BOOST_TEST(data.selectedSummary == "Selected: no map point");
-    BOOST_TEST(data.developmentExportSummary == "HUD export contract: 8 groups / 27 fields");
+    BOOST_TEST(data.developmentExportSummary == "HUD export contract: 8 groups / 30 fields");
+
+    const std::array<std::pair<const char*, const char*>, 17> liveReadOnlyFields = {
+      {{"player", "player.active.id"},
+       {"player", "player.active.name"},
+       {"player", "player.active.label"},
+       {"military", "military.soldiers.total"},
+       {"military", "military.soldiers.ranks"},
+       {"military", "military.soldiers.armored"},
+       {"resources", "resources.gold"},
+       {"resources", "resources.coins"},
+       {"resources", "resources.swords"},
+       {"resources", "resources.food"},
+       {"resources", "resources.boards"},
+       {"resources", "resources.stones"},
+       {"messages", "messages.unread.count"},
+       {"messages", "messages.lane.text"},
+       {"selection", "selection.map.point"},
+       {"selection", "selection.object.summary"},
+       {"map", "map.size"}}};
+    for(const auto& field : liveReadOnlyFields)
+        CheckAvailability(data, field.first, field.second, DeveloperHudFieldAvailability::LiveReadOnly);
 
     const DeveloperHudDataGroup* militaryGroup = FindGroup(data, "military");
     BOOST_TEST_REQUIRE(militaryGroup);
@@ -105,6 +177,8 @@ BOOST_AUTO_TEST_CASE(DeveloperHudViewModelFormatsLiveSnapshotReadOnlyFields)
     BOOST_TEST(static_cast<int>(capacity->availability)
                == static_cast<int>(DeveloperHudFieldAvailability::NotSafelyAccessible));
     BOOST_TEST(capacity->source == "future military capacity accessor");
+    CheckAvailability(data, "military", "military.status.label", DeveloperHudFieldAvailability::NotSafelyAccessible);
+    CheckAvailability(data, "military", "military.capacity.used", DeveloperHudFieldAvailability::NotSafelyAccessible);
 
     const DeveloperHudDataGroup* messageGroup = FindGroup(data, "messages");
     BOOST_TEST_REQUIRE(messageGroup);
@@ -113,11 +187,15 @@ BOOST_AUTO_TEST_CASE(DeveloperHudViewModelFormatsLiveSnapshotReadOnlyFields)
     BOOST_TEST(static_cast<int>(latestMessage->availability)
                == static_cast<int>(DeveloperHudFieldAvailability::NotSafelyAccessible));
     BOOST_TEST(latestMessage->source == "future post message summary accessor");
+    CheckAvailability(data, "economy", "economy.storage.pressure", DeveloperHudFieldAvailability::NotSafelyAccessible);
+    CheckAvailability(data, "commands", "commands.quick.build.eligibility",
+                      DeveloperHudFieldAvailability::NotSafelyAccessible);
 }
 
 BOOST_AUTO_TEST_CASE(DeveloperHudAvailabilityLabelsAreStableForDevelopmentExport)
 {
     BOOST_TEST(ToString(DeveloperHudFieldAvailability::LiveReadOnly) == "live read-only");
+    BOOST_TEST(ToString(DeveloperHudFieldAvailability::LiveReady) == "live-ready field");
     BOOST_TEST(ToString(DeveloperHudFieldAvailability::Mock) == "mock");
     BOOST_TEST(ToString(DeveloperHudFieldAvailability::Placeholder) == "placeholder");
     BOOST_TEST(ToString(DeveloperHudFieldAvailability::NotSafelyAccessible) == "not safely accessible yet");

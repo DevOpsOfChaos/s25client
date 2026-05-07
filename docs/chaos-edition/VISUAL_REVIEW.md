@@ -113,7 +113,8 @@ Use them for different jobs:
 
 - Static Workbench: design sandbox with mock data. It does not load a map or read simulation state.
 - HUD Data Export: the shared ViewModel contract that lists every planned compact HUD value group, including whether a
-  value is mock data, placeholder data, live read-only data, or not safely accessible yet.
+  value is static mock data, a live-ready field in the workbench, live read-only data in game, placeholder data, or not
+  safely accessible yet.
 
 The old broad mock-state list was reduced. The current review direction is:
 
@@ -144,10 +145,10 @@ Available preview states:
   chips, short message status, and persistent toggle buttons without recreating the old bulky lower menu wall.
 - `Toggle Panels: Build/Roads`: compact Build and Roads panels with house, road, flag, mine, store, cancel, active, and
   disabled states. It uses the commands group but never dispatches commands.
-- `Toggle Panels: Military/Economy`: compact soldier readiness/capacity and economy/resource rows using military,
-  resources, and economy contract groups.
-- `Messages + Minimap`: compact unread/latest-message panel, mute preview, toast preview, and static minimap placement
-  comparison with zoom/collapse controls.
+- `Toggle Panels: Military/Economy`: compact soldier rank/armor and economy/resource rows using military, resources, and
+  economy contract groups. Military readiness/capacity and storage pressure are marked not safely accessible yet.
+- `Messages + Minimap`: compact unread-message panel, mute preview, unavailable latest-message marker, and static minimap
+  placement comparison with zoom/collapse controls.
 - `Selected Object / Context Panel`: compact selected-object panel with short context actions and resource snippets,
   driven by the selection and commands groups.
 - `Small-screen Stress`: reduced pressure view for compact bars, toggles, messages, minimap, and context density at a
@@ -189,18 +190,21 @@ the game HUD would need, without turning the normal ingame screen into the test 
 Current export groups:
 
 - `player`: active player id, active player name, compact player label
-- `military`: total soldiers, rank breakdown, armored soldiers, military status, military capacity used/max
-- `resources`: gold, coins, swords, food
-- `messages`: unread message count, latest message label, compact message lane text
+- `military`: total soldiers, rank breakdown, armored soldiers, unavailable military status, unavailable military capacity
+  used/max
+- `resources`: gold, coins, swords, food, boards, stones
+- `messages`: unread message count, unavailable latest message label, compact message lane text
 - `selection`: selected map point, selected object summary, future context actions
 - `map`: map size, minimap thumbnail slot, viewport slot
-- `commands`: command rail categories, build/road quick actions, disabled command dispatch marker
+- `commands`: command rail category placeholders, build/road quick-action label placeholders, unavailable command
+  eligibility, disabled command dispatch marker
 - `economy`: storage pressure and production alert slots
 
 Availability states:
 
-- `mock`: stable workbench data from `MockDeveloperHudDataProvider`
-- `live read-only`: values that can be populated from safe game accessors in a future live adapter
+- `live read-only`: values populated from safe game accessors in `LiveDeveloperHudDataProvider`
+- `live-ready field`: workbench value is static mock data, but the field has a safe live read-only source
+- `mock`: static workbench-only data from `MockDeveloperHudDataProvider`
 - `placeholder`: deliberate UI contract slot with no game dependency yet
 - `not safely accessible yet`: desired HUD value that needs a future accessor instead of private-structure digging
 
@@ -210,8 +214,14 @@ Values not safely accessible yet should get explicit future accessors instead of
 - real minimap thumbnail rendered through the existing minimap path
 - current viewport/minimap focus rectangle
 - military capacity/readiness summary across military buildings
+- read-only selected action eligibility before touching `iwAction`, build, road, or attack controls
 - selected building detail ViewModel for workers, productivity, wares, and available actions
 - storage pressure and production alerts for compact economy chips
+
+The current live-realistic field set is deliberately small: active player id/name/label, soldier total/ranks/armored
+soldiers, gold, coins, swords, food, boards, stones, unread message count, compact message lane text, selected point,
+selected object summary, and map size. The next real UI migration target remains the lower `dskGameInterface` bar and
+`iwMainMenu`; `iwAction` should only be touched after a read-only action eligibility model exists.
 
 When reviewing ingame UI changes in this workbench, check:
 

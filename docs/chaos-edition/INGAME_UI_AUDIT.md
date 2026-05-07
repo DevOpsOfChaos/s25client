@@ -16,11 +16,11 @@ The safe migration target is therefore not "replace the whole old ingame menu fi
 reduce the lower bar and `iwMainMenu` window friction while leaving `iwAction`, road-building, building detail windows,
 simulation commands, network commands, save/replay, settings, and minimap rendering behavior untouched.
 
-`LiveDeveloperHudDataProvider` already reads a small set of real read-only values: active player, soldier counts by
-rank, armored soldiers, gold, coins, swords, food, unread post count, map size, selected point, and selected object type.
-It does not read boards, stones, worker totals, total wares, latest message text, minimap toggle state, military capacity,
-or economy/storage pressure. Several current preview/export fields are therefore only placeholders or mock contract
-guesses, not proven game data.
+`LiveDeveloperHudDataProvider` now reads a small set of real read-only values: active player, soldier counts by rank,
+armored soldiers, gold, coins, swords, food, boards, stones, unread post count, map size, selected point, and selected
+object type. It does not read worker totals, total wares, latest message text, minimap toggle state, military capacity,
+military readiness/status, command eligibility, or economy/storage pressure. Those preview/export fields are therefore
+placeholders or explicitly not safely accessible, not proven game data.
 
 ## Current old ingame menu structure
 
@@ -265,8 +265,8 @@ The following sources are real and already usable or close to usable without inv
 | Coins | `player.GetInventory()[GoodType::Coins]` | Live read-only | `DeveloperHudDataProvider.cpp:239` |
 | Swords | `player.GetInventory()[GoodType::Sword]` | Live read-only | `DeveloperHudDataProvider.cpp:240` |
 | Food | `Fish + Bread + Meat` from `Inventory` | Live read-only | `DeveloperHudDataProvider.cpp:241`; this is a chosen aggregate, not a native field |
-| Boards | `player.GetInventory()[GoodType::Boards]` | Safely available, not yet exposed | Same `Inventory` source as gold/coins/swords |
-| Stones | `player.GetInventory()[GoodType::Stones]` | Safely available, not yet exposed | Same `Inventory` source as gold/coins/swords |
+| Boards | `player.GetInventory()[GoodType::Boards]` | Live read-only | Same `Inventory` source as gold/coins/swords |
+| Stones | `player.GetInventory()[GoodType::Stones]` | Live read-only | Same `Inventory` source as gold/coins/swords |
 | Worker count / population | Sum over `Inventory::people` or selected `Job` entries | Safely available, not yet exposed | Needs an agreed definition of "workers" vs all people vs soldiers |
 | Wares total | Sum over `Inventory::goods` | Safely available, not yet exposed | Needs filtering for unused/addon goods before becoming HUD contract |
 | Unread messages | `PostBox::GetNumMsgs()` | Live read-only | Used by `dskGameInterface::UpdatePostIcon` and provider |
@@ -312,18 +312,18 @@ These fields are realistic because `LiveDeveloperHudDataProvider` already has re
 - `resources.coins`
 - `resources.swords`
 - `resources.food`
+- `resources.boards`
+- `resources.stones`
 - `messages.unread.count`
 - `messages.lane.text`
 - `selection.map.point`
 - `selection.object.summary` as a coarse object-type label
 - `map.size`
 
-### Realistic but missing from the current provider
+### Realistic but still missing from the current provider
 
 These should be added before any new mock UI claims they exist:
 
-- `resources.boards` from `Inventory[GoodType::Boards]`.
-- `resources.stones` from `Inventory[GoodType::Stones]`.
 - `population.total` or `workers.total`, after defining whether soldiers and inactive/unused addon jobs count.
 - `wares.total`, after defining addon filtering and whether shields are nation-converted.
 - `messages.latest.text`, using `PostBox::GetMsg()` only after defining newest-message index and truncation rules.
@@ -335,14 +335,16 @@ These should be added before any new mock UI claims they exist:
 
 These fields should not drive a new UI until backed by real sources:
 
-- `military.status.label`: "Guarded" in the mock provider is fantasy.
-- `military.capacity.used` and `military.capacity.max`: values `184/240` in the mock provider are fantasy.
-- `messages.latest.label`: mock text is plausible-looking but not live.
-- `minimap.thumbnail`: "placeholder card" is not the real minimap.
+- `military.status.label`: no mock readiness label is exported anymore; it stays not safely accessible.
+- `military.capacity.used` and `military.capacity.max`: no numeric capacity is exported anymore; both stay not safely
+  accessible.
+- `messages.latest.label`: no plausible-looking text is exported anymore; it stays not safely accessible.
+- `minimap.thumbnail`: "placeholder card" is a UI placeholder, not the real minimap.
 - `minimap.viewport`: currently "not exported yet".
 - `commands.rail.categories`: a design idea, not a data source.
-- `commands.quick.build`: unsafe as written. It implies generic build actions, but real build actions depend on selected
-  point, `BuildingQuality`, addon state, building enabled state, nearby military buildings, road mode, replay mode, and
+- `commands.quick.build.labels`: static UI labels only.
+- `commands.quick.build.eligibility`: not safely accessible yet. Real build actions depend on selected point,
+  `BuildingQuality`, addon state, building enabled state, nearby military buildings, road mode, replay mode, and
   ownership.
 - `commands.dispatch`: fine as a safety placeholder, but it must stay disabled until a real command eligibility contract
   exists.
@@ -435,12 +437,10 @@ These should be selection-dependent, not permanent:
 ## Recommended next implementation block
 
 1. Keep the preview visually stable. Do not add new mock values.
-2. Patch `LiveDeveloperHudDataProvider` only to add clearly safe read-only values:
-   - boards;
-   - stones;
-   - optional latest post text with a tiny helper and truncation;
-   - optional worker/wares totals only after naming the exact definitions.
-3. Remove or relabel fake fields:
+2. Keep `LiveDeveloperHudDataProvider` limited to clearly safe read-only values. Boards and stones are now included.
+   Add worker/wares totals only after naming the exact definitions, and latest post text only after defining newest
+   message index and truncation behavior.
+3. Keep fake fields removed or relabeled:
    - military status/capacity;
    - quick build command lists;
    - minimap thumbnail;
