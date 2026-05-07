@@ -118,10 +118,11 @@ Use them for different jobs:
 
 The old broad mock-state list was reduced. The current review direction is:
 
-`modernized classic toggle-panel UI`
+`modernized classic icon-first toggle-panel HUD`
 
 The workbench goal is to test whether the old Main Menu / submenu friction can be replaced by compact toggle buttons
-that open smaller modernized panels, while still feeling like Settlers / RTTR rather than a foreign command center.
+that open smaller modernized panels, while still feeling like Settlers / RTTR rather than a foreign command center. The
+permanent bars should read as symbol/value chips first; explanatory labels belong inside toggle panels or diagnostics.
 
 Start it from a devtools build:
 
@@ -141,14 +142,15 @@ Navigation:
 
 Available preview states:
 
-- `Classic-inspired Compact HUD`: the main direction state. It shows narrow top/bottom bars, small resource and military
-  chips, short message status, and persistent toggle buttons without recreating the old bulky lower menu wall.
+- `Classic-inspired Compact HUD`: the main direction state. It shows narrow top/bottom bars, compact drawn-glyph value
+  chips, subtle mock/live markers, and persistent icon toggles without recreating the old bulky lower menu wall.
 - `Toggle Panels: Build/Roads`: compact Build and Roads panels with house, road, flag, mine, store, cancel, active, and
-  disabled states. It uses the commands group but never dispatches commands.
+  disabled states. It uses the commands group but never dispatches commands; placeholder action chips are marked as such.
 - `Toggle Panels: Military/Economy`: compact soldier rank/armor and economy/resource rows using military, resources, and
-  economy contract groups. Military readiness/capacity and storage pressure are marked not safely accessible yet.
-- `Messages + Minimap`: compact unread-message panel, mute preview, unavailable latest-message marker, and static minimap
-  placement comparison with zoom/collapse controls.
+  economy contract groups. Resource values use symbol/number chips. Military readiness/capacity and storage pressure are
+  marked not safely accessible yet.
+- `Messages + Minimap`: compact unread-message panel, unavailable latest-message marker, and static minimap placement
+  comparison with placeholder zoom/collapse controls.
 - `Selected Object / Context Panel`: compact selected-object panel with short context actions and resource snippets,
   driven by the selection and commands groups.
 - `Small-screen Stress`: reduced pressure view for compact bars, toggles, messages, minimap, and context density at a
@@ -168,16 +170,17 @@ The workbench shows a static full-page ingame UI shell:
 
 - fake terrain/checker background for density and contrast review
 - narrow top and bottom HUD bars
-- compact toggle buttons for Build, Roads, Military, Economy, Messages, Map, and Selection
+- compact icon toggle buttons for Build, Roads, Military, Economy, Messages, Map, and Selection
 - modernized classic-style panels with lighter frame weight and short labels
-- representative resource, soldier, message, map, selection, command, and economy contract usage
+- representative resource, soldier, message, map, selection, command, and economy contract usage through compact
+  drawn-glyph chips
 - simulated minimap placeholder cards
 - current preview size, GUI scale, texture filtering, and active preview state labels
 - compact HUD data source, chip, resource, selection, map, and message diagnostics from `MockDeveloperHudDataProvider`
 - HUD export contract diagnostics for player, military, resources, messages, selection, map/minimap, command rail, and
   economy groups
 - explicit developer-only labels such as `Developer Preview: Ingame UI Workbench` and
-  `Developer Preview | Static mock data | Not product UI | No gameplay logic`
+  `Developer preview | mock data | product UI and gameplay untouched`
 
 It deliberately does not load a map, start simulation, open network/replay/save logic, use addons, or depend on
 `GlobalGameSettings`.
@@ -251,6 +254,7 @@ When reviewing ingame UI changes in this workbench, check:
 - in the HUD data export, whether every value needed for the desired GUI has an explicit field
 - whether mock/placeholder/not-safely-accessible statuses are honest enough to guide future accessor work
 - whether Soldier/resource chips help decision-making or are just numeric noise
+- whether the drawn glyphs are recognizable enough without drifting into futuristic/mobile/vector style
 - whether the direction is too modern, too old, or exactly between
 
 Real product UI changes still need user visual approval. The workbench only makes that approval cheaper; it does not

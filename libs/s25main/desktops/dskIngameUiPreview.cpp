@@ -6,6 +6,7 @@
 #include "Loader.h"
 #include "Settings.h"
 #include "TextureFiltering.h"
+#include "Window.h"
 #include "WindowManager.h"
 #include "controls/ctrlButton.h"
 #include "controls/ctrlText.h"
@@ -84,6 +85,28 @@ constexpr unsigned COLOR_MINIMAP_LAND = 0xFF3E6833;
 constexpr unsigned COLOR_MINIMAP_FIELD = 0xFF987A38;
 constexpr unsigned COLOR_WARNING = 0xFFD67B4A;
 constexpr unsigned COLOR_DANGER = 0xFFD85038;
+constexpr unsigned COLOR_ICON_INK = 0xFF171109;
+constexpr unsigned COLOR_MUTED_MARKER = 0xAA9D8154;
+
+enum class PreviewGlyph
+{
+    Player,
+    Soldier,
+    Gold,
+    Sword,
+    Post,
+    Food,
+    Coins,
+    Boards,
+    Stones,
+    Build,
+    Road,
+    Military,
+    Economy,
+    Map,
+    Selection,
+    Disabled
+};
 
 struct PreviewStateDefinition
 {
@@ -99,7 +122,7 @@ const std::array<PreviewStateDefinition, static_cast<unsigned>(dskIngameUiPrevie
   PREVIEW_STATES = {
     {{dskIngameUiPreview::PreviewState::ClassicCompactHud,
       ID_btStateClassicCompactHud,
-      "1 Compact HUD",
+      "1 HUD",
       U'1',
       "Classic-inspired Compact HUD",
       {{"Developer Preview | Static mock data | Not product UI | No gameplay logic",
@@ -112,7 +135,7 @@ const std::array<PreviewStateDefinition, static_cast<unsigned>(dskIngameUiPrevie
         "No real map, simulation, network, save, replay, settings, addons, or commands are touched"}}},
      {dskIngameUiPreview::PreviewState::ToggleBuildRoads,
       ID_btStateToggleBuildRoads,
-      "2 Build/Roads",
+      "2 B/R",
       U'2',
       "Toggle Panels: Build/Roads",
       {{"Developer Preview | Static mock data | Not product UI | No gameplay logic",
@@ -125,7 +148,7 @@ const std::array<PreviewStateDefinition, static_cast<unsigned>(dskIngameUiPrevie
         "Panel language is short labels and glyph-like initials, not a text-heavy mock page"}}},
      {dskIngameUiPreview::PreviewState::ToggleMilitaryEconomy,
       ID_btStateToggleMilitaryEconomy,
-      "3 Mil/Eco",
+      "3 M/E",
       U'3',
       "Toggle Panels: Military/Economy",
       {{"Developer Preview | Static mock data | Not product UI | No gameplay logic",
@@ -138,7 +161,7 @@ const std::array<PreviewStateDefinition, static_cast<unsigned>(dskIngameUiPrevie
         "Classic strategy-game mood with cleaner grouping and lighter frame weight"}}},
      {dskIngameUiPreview::PreviewState::MessagesMinimap,
       ID_btStateMessagesMinimap,
-      "4 Msg/Map",
+      "4 P/Map",
       U'4',
       "Messages + Minimap",
       {{"Developer Preview | Static mock data | Not product UI | No gameplay logic",
@@ -151,7 +174,7 @@ const std::array<PreviewStateDefinition, static_cast<unsigned>(dskIngameUiPrevie
         "Later UI question: should minimap be docked, toggled, or collapsible by default?"}}},
      {dskIngameUiPreview::PreviewState::SelectionContext,
       ID_btStateSelectionContext,
-      "5 Selection",
+      "5 Sel",
       U'5',
       "Selected Object / Context Panel",
       {{"Developer Preview | Static mock data | Not product UI | No gameplay logic",
@@ -164,7 +187,7 @@ const std::array<PreviewStateDefinition, static_cast<unsigned>(dskIngameUiPrevie
         "Later UI question: which context actions are worth showing immediately?"}}},
      {dskIngameUiPreview::PreviewState::SmallScreenStress,
       ID_btStateSmallScreenStress,
-      "6 Small",
+      "6 Stress",
       U'6',
       "Small-screen Stress",
       {{"Developer Preview | Static mock data | Not product UI | No gameplay logic",
@@ -187,6 +210,147 @@ const PreviewStateDefinition& GetPreviewStateDefinition(const dskIngameUiPreview
 std::size_t GetPreviewStateIndex(const dskIngameUiPreview::PreviewState state)
 {
     return static_cast<std::size_t>(&GetPreviewStateDefinition(state) - PREVIEW_STATES.data());
+}
+
+std::string PlayerChipValue(const std::string& playerLabel)
+{
+    const std::string::size_type space = playerLabel.find(' ');
+    return space == std::string::npos ? playerLabel : playerLabel.substr(0, space);
+}
+
+std::string MapSizeValue(const std::string& mapSummary)
+{
+    const std::string::size_type prefixSize = 4;
+    const std::string::size_type delimiter = mapSummary.find(" |");
+    if(mapSummary.size() <= prefixSize)
+        return mapSummary;
+    return mapSummary.substr(prefixSize, delimiter == std::string::npos ? std::string::npos : delimiter - prefixSize);
+}
+
+PreviewGlyph ResourceGlyph(const std::string& icon)
+{
+    if(icon == "Au")
+        return PreviewGlyph::Gold;
+    if(icon == "Sw")
+        return PreviewGlyph::Sword;
+    if(icon == "Fd")
+        return PreviewGlyph::Food;
+    if(icon == "Co")
+        return PreviewGlyph::Coins;
+    if(icon == "Bd")
+        return PreviewGlyph::Boards;
+    if(icon == "St")
+        return PreviewGlyph::Stones;
+    return PreviewGlyph::Disabled;
+}
+
+void DrawPreviewGlyph(const DrawPoint pos, const PreviewGlyph glyph, const unsigned color)
+{
+    Window::DrawRectangle(Rect(pos + DrawPoint(1, 1), Extent(14, 14)), COLOR_ICON_INK);
+    switch(glyph)
+    {
+        case PreviewGlyph::Player:
+            Window::DrawRectangle(Rect(pos + DrawPoint(4, 3), Extent(2, 10)), color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(6, 3), Extent(7, 5)), color);
+            Window::DrawLine(pos + DrawPoint(6, 8), pos + DrawPoint(12, 11), 1, color);
+            break;
+        case PreviewGlyph::Soldier:
+            Window::DrawRectangle(Rect(pos + DrawPoint(4, 3), Extent(8, 9)), color);
+            Window::DrawLine(pos + DrawPoint(4, 12), pos + DrawPoint(8, 15), 1, color);
+            Window::DrawLine(pos + DrawPoint(12, 12), pos + DrawPoint(8, 15), 1, color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(7, 5), Extent(2, 6)), COLOR_ICON_INK);
+            break;
+        case PreviewGlyph::Gold:
+            Window::DrawRectangle(Rect(pos + DrawPoint(4, 4), Extent(8, 8)), color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(6, 2), Extent(6, 3)), SetAlpha(color, 210));
+            Window::DrawRectangle(Rect(pos + DrawPoint(3, 10), Extent(10, 3)), SetAlpha(color, 180));
+            break;
+        case PreviewGlyph::Sword:
+            Window::DrawLine(pos + DrawPoint(4, 12), pos + DrawPoint(12, 4), 2, color);
+            Window::DrawLine(pos + DrawPoint(5, 9), pos + DrawPoint(8, 12), 1, color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(3, 12), Extent(3, 3)), color);
+            break;
+        case PreviewGlyph::Post:
+            Window::DrawRectangle(Rect(pos + DrawPoint(3, 5), Extent(10, 8)), color);
+            Window::DrawLine(pos + DrawPoint(3, 5), pos + DrawPoint(8, 10), 1, COLOR_ICON_INK);
+            Window::DrawLine(pos + DrawPoint(13, 5), pos + DrawPoint(8, 10), 1, COLOR_ICON_INK);
+            break;
+        case PreviewGlyph::Food:
+            Window::DrawRectangle(Rect(pos + DrawPoint(4, 4), Extent(3, 8)), color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(8, 3), Extent(2, 10)), color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(11, 5), Extent(2, 7)), color);
+            break;
+        case PreviewGlyph::Coins:
+            Window::DrawRectangle(Rect(pos + DrawPoint(4, 4), Extent(9, 3)), color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(3, 7), Extent(9, 3)), SetAlpha(color, 210));
+            Window::DrawRectangle(Rect(pos + DrawPoint(5, 10), Extent(8, 3)), SetAlpha(color, 180));
+            break;
+        case PreviewGlyph::Boards:
+            Window::DrawRectangle(Rect(pos + DrawPoint(3, 4), Extent(10, 3)), color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(4, 8), Extent(10, 3)), SetAlpha(color, 220));
+            Window::DrawRectangle(Rect(pos + DrawPoint(2, 12), Extent(10, 2)), SetAlpha(color, 190));
+            break;
+        case PreviewGlyph::Stones:
+            Window::DrawRectangle(Rect(pos + DrawPoint(3, 8), Extent(5, 5)), color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(8, 5), Extent(5, 5)), SetAlpha(color, 220));
+            Window::DrawRectangle(Rect(pos + DrawPoint(6, 11), Extent(7, 3)), SetAlpha(color, 190));
+            break;
+        case PreviewGlyph::Build:
+            Window::DrawLine(pos + DrawPoint(3, 8), pos + DrawPoint(8, 3), 1, color);
+            Window::DrawLine(pos + DrawPoint(8, 3), pos + DrawPoint(13, 8), 1, color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(5, 8), Extent(7, 6)), color);
+            break;
+        case PreviewGlyph::Road:
+            Window::DrawLine(pos + DrawPoint(3, 12), pos + DrawPoint(13, 4), 2, color);
+            Window::DrawLine(pos + DrawPoint(5, 14), pos + DrawPoint(15, 6), 1, SetAlpha(color, 180));
+            break;
+        case PreviewGlyph::Military:
+            Window::DrawRectangle(Rect(pos + DrawPoint(4, 4), Extent(8, 8)), color);
+            Window::DrawLine(pos + DrawPoint(4, 8), pos + DrawPoint(12, 8), 1, COLOR_ICON_INK);
+            Window::DrawLine(pos + DrawPoint(8, 4), pos + DrawPoint(8, 12), 1, COLOR_ICON_INK);
+            break;
+        case PreviewGlyph::Economy:
+            Window::DrawRectangle(Rect(pos + DrawPoint(3, 10), Extent(3, 4)), color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(7, 7), Extent(3, 7)), color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(11, 4), Extent(3, 10)), color);
+            break;
+        case PreviewGlyph::Map:
+            Window::DrawRectangle(Rect(pos + DrawPoint(3, 4), Extent(10, 8)), color);
+            Window::DrawLine(pos + DrawPoint(6, 4), pos + DrawPoint(6, 12), 1, COLOR_ICON_INK);
+            Window::DrawLine(pos + DrawPoint(10, 4), pos + DrawPoint(10, 12), 1, COLOR_ICON_INK);
+            break;
+        case PreviewGlyph::Selection:
+            Window::DrawLine(pos + DrawPoint(8, 3), pos + DrawPoint(8, 13), 1, color);
+            Window::DrawLine(pos + DrawPoint(3, 8), pos + DrawPoint(13, 8), 1, color);
+            Window::DrawRectangle(Rect(pos + DrawPoint(6, 6), Extent(4, 4)), color);
+            break;
+        case PreviewGlyph::Disabled:
+            Window::DrawLine(pos + DrawPoint(4, 4), pos + DrawPoint(12, 12), 2, color);
+            Window::DrawLine(pos + DrawPoint(12, 4), pos + DrawPoint(4, 12), 2, color);
+            break;
+    }
+}
+
+void DrawIconValueChip(const DrawPoint pos, const Extent size, const PreviewGlyph glyph, const std::string& value,
+                       const unsigned accent, const bool active = false, const std::string& marker = "")
+{
+    Window::DrawRectangle(Rect(pos, size), active ? COLOR_CHIP_ACTIVE : COLOR_CHIP);
+    Window::DrawRectangle(Rect(pos + DrawPoint(2, 2), Extent(size.x - 4, size.y - 4)),
+                          active ? 0xCC6A5630 : 0xCC463A25);
+    Window::DrawLine(pos + DrawPoint(4, size.y - 2), pos + DrawPoint(size.x - 4, size.y - 2), 1, accent);
+    DrawPreviewGlyph(pos + DrawPoint(5, 4), glyph, accent);
+    SmallFont->Draw(pos + DrawPoint(size.x - 7, 6), value, FontStyle::RIGHT, COLOR_YELLOW);
+    if(!marker.empty())
+        SmallFont->Draw(pos + DrawPoint(size.x - 4, size.y - 11), marker, FontStyle::RIGHT, COLOR_MUTED_MARKER);
+}
+
+void DrawIconButtonPreview(const DrawPoint pos, const PreviewGlyph glyph, const bool active,
+                           const bool disabled = false)
+{
+    const unsigned accent = disabled ? COLOR_GREY : (active ? COLOR_WARNING : COLOR_EARTH_EDGE);
+    Window::DrawRectangle(Rect(pos, Extent(28, 22)),
+                          disabled ? COLOR_DISABLED : (active ? COLOR_CHIP_ACTIVE : COLOR_CHIP));
+    DrawPreviewGlyph(pos + DrawPoint(6, 3), glyph, accent);
 }
 
 const DeveloperHudDataGroup* FindGroup(const DeveloperHudViewModel& data, const std::string& key)
@@ -278,6 +442,7 @@ void dskIngameUiPreview::DrawActionGrid(const DrawPoint pos, const std::array<co
                       disabled ? COLOR_DISABLED : (active ? COLOR_CHIP_ACTIVE : COLOR_CHIP));
         SmallFont->Draw(buttonPos + DrawPoint(31, 6), labels[i], FontStyle::CENTER,
                         disabled ? COLOR_GREY : COLOR_YELLOW);
+        SmallFont->Draw(buttonPos + DrawPoint(58, 15), "plh", FontStyle::RIGHT, COLOR_MUTED_MARKER);
     }
 }
 
@@ -290,8 +455,7 @@ dskIngameUiPreview::dskIngameUiPreview()
 
     AddText(ID_txtTitle, DrawPoint(0, 0), "Developer Preview: Ingame UI Workbench", COLOR_ORANGE, FontStyle::CENTER,
             LargeFont);
-    AddText(ID_txtNotice, DrawPoint(0, 0),
-            "Developer Preview | Static mock data | Not product UI | No gameplay logic; no map/simulation/network/save",
+    AddText(ID_txtNotice, DrawPoint(0, 0), "Developer preview | mock data | product UI and gameplay untouched",
             COLOR_YELLOW, FontStyle::CENTER, SmallFont);
     AddText(ID_txtSize, DrawPoint(0, 0), "", COLOR_YELLOW, FontStyle{}, SmallFont);
     AddText(ID_txtGuiScale, DrawPoint(0, 0), "", COLOR_YELLOW, FontStyle{}, SmallFont);
@@ -315,17 +479,17 @@ dskIngameUiPreview::dskIngameUiPreview()
                       SmallFont);
     }
 
-    AddTextButton(ID_btToggleBuild, DrawPoint(0, 0), Extent(58, 24), TextureColor::Grey, "Build", SmallFont);
-    AddTextButton(ID_btToggleRoads, DrawPoint(0, 0), Extent(58, 24), TextureColor::Grey, "Roads", SmallFont);
-    AddTextButton(ID_btToggleMilitary, DrawPoint(0, 0), Extent(70, 24), TextureColor::Grey, "Military", SmallFont);
-    AddTextButton(ID_btToggleEconomy, DrawPoint(0, 0), Extent(70, 24), TextureColor::Grey, "Economy", SmallFont);
-    AddTextButton(ID_btToggleMessages, DrawPoint(0, 0), Extent(72, 24), TextureColor::Grey, "Messages", SmallFont);
-    AddTextButton(ID_btToggleMap, DrawPoint(0, 0), Extent(50, 24), TextureColor::Grey, "Map", SmallFont);
-    AddTextButton(ID_btToggleSelection, DrawPoint(0, 0), Extent(76, 24), TextureColor::Grey, "Selection", SmallFont);
+    AddTextButton(ID_btToggleBuild, DrawPoint(0, 0), Extent(34, 24), TextureColor::Grey, "", SmallFont);
+    AddTextButton(ID_btToggleRoads, DrawPoint(0, 0), Extent(34, 24), TextureColor::Grey, "", SmallFont);
+    AddTextButton(ID_btToggleMilitary, DrawPoint(0, 0), Extent(34, 24), TextureColor::Grey, "", SmallFont);
+    AddTextButton(ID_btToggleEconomy, DrawPoint(0, 0), Extent(34, 24), TextureColor::Grey, "", SmallFont);
+    AddTextButton(ID_btToggleMessages, DrawPoint(0, 0), Extent(34, 24), TextureColor::Grey, "", SmallFont);
+    AddTextButton(ID_btToggleMap, DrawPoint(0, 0), Extent(42, 24), TextureColor::Grey, "", SmallFont);
+    AddTextButton(ID_btToggleSelection, DrawPoint(0, 0), Extent(42, 24), TextureColor::Grey, "", SmallFont);
 
-    AddTextButton(ID_btActionPrimary, DrawPoint(0, 0), Extent(86, 22), TextureColor::Green2, "Road", SmallFont);
-    AddTextButton(ID_btActionSecondary, DrawPoint(0, 0), Extent(86, 22), TextureColor::Green1, "Flag", SmallFont);
-    AddTextButton(ID_btActionDisabled, DrawPoint(0, 0), Extent(86, 22), TextureColor::Grey, "Disabled", SmallFont);
+    AddTextButton(ID_btActionPrimary, DrawPoint(0, 0), Extent(56, 22), TextureColor::Green2, "", SmallFont);
+    AddTextButton(ID_btActionSecondary, DrawPoint(0, 0), Extent(56, 22), TextureColor::Green1, "", SmallFont);
+    AddTextButton(ID_btActionDisabled, DrawPoint(0, 0), Extent(56, 22), TextureColor::Grey, "", SmallFont);
     AddTextButton(ID_btBack, DrawPoint(0, 0), Extent(120, 22), TextureColor::Red1, "Back", NormalFont);
 
     LayoutControls();
@@ -369,6 +533,62 @@ void dskIngameUiPreview::Msg_PaintBefore()
     DrawPreviewBackground();
     DrawIngameShell();
     DrawPreviewState();
+}
+
+void dskIngameUiPreview::Msg_PaintAfter()
+{
+    Desktop::Msg_PaintAfter();
+
+    const std::array<std::pair<unsigned, PreviewGlyph>, 7> toggleGlyphs = {
+      {{ID_btToggleBuild, PreviewGlyph::Build},
+       {ID_btToggleRoads, PreviewGlyph::Road},
+       {ID_btToggleMilitary, PreviewGlyph::Military},
+       {ID_btToggleEconomy, PreviewGlyph::Economy},
+       {ID_btToggleMessages, PreviewGlyph::Post},
+       {ID_btToggleMap, PreviewGlyph::Map},
+       {ID_btToggleSelection, PreviewGlyph::Selection}}};
+    for(const auto& toggleGlyph : toggleGlyphs)
+    {
+        const ctrlButton& button = *GetCtrl<ctrlButton>(toggleGlyph.first);
+        const Extent buttonSize = button.GetSize();
+        const DrawPoint glyphPos = button.GetDrawPos() + DrawPoint(static_cast<int>(buttonSize.x - 16) / 2, 4);
+        DrawPreviewGlyph(glyphPos, toggleGlyph.second, button.GetCheck() ? COLOR_WARNING : COLOR_EARTH_EDGE);
+    }
+
+    PreviewGlyph primaryGlyph = PreviewGlyph::Road;
+    PreviewGlyph secondaryGlyph = PreviewGlyph::Build;
+    switch(previewState_)
+    {
+        case PreviewState::ToggleMilitaryEconomy:
+            primaryGlyph = PreviewGlyph::Military;
+            secondaryGlyph = PreviewGlyph::Economy;
+            break;
+        case PreviewState::MessagesMinimap:
+            primaryGlyph = PreviewGlyph::Post;
+            secondaryGlyph = PreviewGlyph::Map;
+            break;
+        case PreviewState::SelectionContext:
+            primaryGlyph = PreviewGlyph::Selection;
+            secondaryGlyph = PreviewGlyph::Map;
+            break;
+        case PreviewState::SmallScreenStress:
+            primaryGlyph = PreviewGlyph::Build;
+            secondaryGlyph = PreviewGlyph::Map;
+            break;
+        default: break;
+    }
+
+    const std::array<std::pair<unsigned, PreviewGlyph>, 3> actionGlyphs = {
+      {{ID_btActionPrimary, primaryGlyph},
+       {ID_btActionSecondary, secondaryGlyph},
+       {ID_btActionDisabled, PreviewGlyph::Disabled}}};
+    for(const auto& actionGlyph : actionGlyphs)
+    {
+        const ctrlButton& button = *GetCtrl<ctrlButton>(actionGlyph.first);
+        const Extent buttonSize = button.GetSize();
+        const DrawPoint glyphPos = button.GetDrawPos() + DrawPoint(static_cast<int>(buttonSize.x - 16) / 2, 3);
+        DrawPreviewGlyph(glyphPos, actionGlyph.second, button.GetEnabled() ? COLOR_EARTH_EDGE : COLOR_GREY);
+    }
 }
 
 bool dskIngameUiPreview::Msg_KeyDown(const KeyEvent& ke)
@@ -453,7 +673,7 @@ void dskIngameUiPreview::LayoutControls()
     const std::array<unsigned, 7> toggleButtons = {{ID_btToggleBuild, ID_btToggleRoads, ID_btToggleMilitary,
                                                     ID_btToggleEconomy, ID_btToggleMessages, ID_btToggleMap,
                                                     ID_btToggleSelection}};
-    const std::array<int, 7> toggleWidths = {{58, 58, 70, 70, 72, 50, 76}};
+    const std::array<int, 7> toggleWidths = {{34, 34, 34, 34, 34, 42, 42}};
     int toggleWidth = 0;
     for(const int buttonWidth : toggleWidths)
         toggleWidth += buttonWidth + 6;
@@ -467,8 +687,8 @@ void dskIngameUiPreview::LayoutControls()
     }
 
     GetCtrl<ctrlButton>(ID_btActionPrimary)->SetPos(DrawPoint(18, WORKBENCH_HEADER_HEIGHT + TOP_HUD_HEIGHT + 176));
-    GetCtrl<ctrlButton>(ID_btActionSecondary)->SetPos(DrawPoint(110, WORKBENCH_HEADER_HEIGHT + TOP_HUD_HEIGHT + 176));
-    GetCtrl<ctrlButton>(ID_btActionDisabled)->SetPos(DrawPoint(202, WORKBENCH_HEADER_HEIGHT + TOP_HUD_HEIGHT + 176));
+    GetCtrl<ctrlButton>(ID_btActionSecondary)->SetPos(DrawPoint(80, WORKBENCH_HEADER_HEIGHT + TOP_HUD_HEIGHT + 176));
+    GetCtrl<ctrlButton>(ID_btActionDisabled)->SetPos(DrawPoint(142, WORKBENCH_HEADER_HEIGHT + TOP_HUD_HEIGHT + 176));
     GetCtrl<ctrlButton>(ID_btBack)->SetPos(DrawPoint(width - 140, height - 32));
 
     UpdateDiagnostics();
@@ -555,34 +775,34 @@ void dskIngameUiPreview::UpdatePreviewStateControls()
     switch(previewState_)
     {
         case PreviewState::ToggleBuildRoads:
-            primaryButton.SetText("Road");
-            secondaryButton.SetText("Flag");
-            disabledButton.SetText("Disabled");
+            primaryButton.SetText("");
+            secondaryButton.SetText("");
+            disabledButton.SetText("");
             break;
         case PreviewState::ToggleMilitaryEconomy:
-            primaryButton.SetText("Readiness");
-            secondaryButton.SetText("Resources");
-            disabledButton.SetText("Reserve");
+            primaryButton.SetText("");
+            secondaryButton.SetText("");
+            disabledButton.SetText("");
             break;
         case PreviewState::MessagesMinimap:
-            primaryButton.SetText("Mute");
-            secondaryButton.SetText("Zoom +");
-            disabledButton.SetText("Real map");
+            primaryButton.SetText("");
+            secondaryButton.SetText("");
+            disabledButton.SetText("");
             break;
         case PreviewState::SelectionContext:
-            primaryButton.SetText("Inspect");
-            secondaryButton.SetText("Center");
-            disabledButton.SetText("Command");
+            primaryButton.SetText("");
+            secondaryButton.SetText("");
+            disabledButton.SetText("");
             break;
         case PreviewState::SmallScreenStress:
-            primaryButton.SetText("Build");
-            secondaryButton.SetText("Map");
-            disabledButton.SetText("Overflow");
+            primaryButton.SetText("");
+            secondaryButton.SetText("");
+            disabledButton.SetText("");
             break;
         default:
-            primaryButton.SetText("Road");
-            secondaryButton.SetText("Flag");
-            disabledButton.SetText("Disabled");
+            primaryButton.SetText("");
+            secondaryButton.SetText("");
+            disabledButton.SetText("");
             break;
     }
 }
@@ -624,19 +844,32 @@ void dskIngameUiPreview::DrawIngameShell() const
              COLOR_EARTH_EDGE_DIM);
     DrawLine(DrawPoint(0, bottomBarTop), DrawPoint(width, bottomBarTop), 2, COLOR_EARTH_EDGE_DIM);
 
-    DrawChip(DrawPoint(18, topBarTop + 7), Extent(88, 24), hudData_.playerLabel, true);
-    DrawChip(DrawPoint(114, topBarTop + 7), Extent(62, 24), hudData_.topBarChips[1]);
-    DrawChip(DrawPoint(184, topBarTop + 7), Extent(62, 24), hudData_.topBarChips[2]);
-    DrawChip(DrawPoint(254, topBarTop + 7), Extent(62, 24), hudData_.topBarChips[3]);
-    DrawChip(DrawPoint(width - 94, topBarTop + 7), Extent(76, 24), hudData_.topBarChips[4], hudData_.messageCount > 0);
+    DrawIconValueChip(DrawPoint(18, topBarTop + 7), Extent(58, 24), PreviewGlyph::Player,
+                      PlayerChipValue(hudData_.playerLabel), COLOR_EARTH_EDGE, true);
+    DrawIconValueChip(DrawPoint(84, topBarTop + 7), Extent(58, 24), PreviewGlyph::Soldier,
+                      std::to_string(hudData_.totalSoldiers), COLOR_WARNING);
+    DrawIconValueChip(DrawPoint(150, topBarTop + 7), Extent(58, 24), PreviewGlyph::Gold,
+                      hudData_.resourceChips[0].value, COLOR_EARTH_EDGE);
+    DrawIconValueChip(DrawPoint(216, topBarTop + 7), Extent(58, 24), PreviewGlyph::Sword,
+                      hudData_.resourceChips[1].value, COLOR_EARTH_EDGE);
+    DrawIconValueChip(DrawPoint(width - 76, topBarTop + 7), Extent(58, 24), PreviewGlyph::Post,
+                      std::to_string(hudData_.messageCount),
+                      hudData_.messageCount > 0 ? COLOR_WARNING : COLOR_EARTH_EDGE, hudData_.messageCount > 0);
 
-    const DrawPoint messagePos(centerX - 170, topBarTop + 8);
-    DrawRectangle(Rect(messagePos, Extent(340, 22)), 0xCC4E4129);
-    SmallFont->Draw(messagePos + DrawPoint(12, 6), "Post: " + hudData_.messageLane, FontStyle{}, COLOR_YELLOW);
-
-    DrawRectangle(Rect(DrawPoint(centerX - 260, bottomBarTop + 10), Extent(520, 38)), 0xBB2F2A1D);
-    SmallFont->Draw(DrawPoint(centerX, bottomBarTop + 43), "toggle-panel bar / static preview only", FontStyle::CENTER,
-                    COLOR_EARTH_EDGE);
+    DrawRectangle(Rect(DrawPoint(centerX - 164, bottomBarTop + 10), Extent(328, 38)), 0xBB2F2A1D);
+    const std::array<PreviewGlyph, 7> toggleGlyphs = {{PreviewGlyph::Build, PreviewGlyph::Road, PreviewGlyph::Military,
+                                                       PreviewGlyph::Economy, PreviewGlyph::Post, PreviewGlyph::Map,
+                                                       PreviewGlyph::Selection}};
+    const std::array<PreviewState, 7> toggleStates = {
+      {PreviewState::ToggleBuildRoads, PreviewState::ToggleBuildRoads, PreviewState::ToggleMilitaryEconomy,
+       PreviewState::ToggleMilitaryEconomy, PreviewState::MessagesMinimap, PreviewState::MessagesMinimap,
+       PreviewState::SelectionContext}};
+    for(unsigned i = 0; i < toggleGlyphs.size(); ++i)
+    {
+        const DrawPoint iconPos(centerX - 144 + static_cast<int>(i) * 42, bottomBarTop + 18);
+        DrawIconButtonPreview(iconPos, toggleGlyphs[i], toggleStates[i] == previewState_);
+    }
+    SmallFont->Draw(DrawPoint(centerX + 158, bottomBarTop + 32), "no cmd", FontStyle{}, COLOR_MUTED_MARKER);
 }
 
 void dskIngameUiPreview::DrawPreviewState() const
@@ -655,18 +888,22 @@ void dskIngameUiPreview::DrawPreviewState() const
         case PreviewState::ClassicCompactHud:
         {
             DrawClassicPanel(DrawPoint(centerX - 230, topContent + 34), Extent(460, 122),
-                             "Classic-inspired compact HUD direction");
-            SmallFont->Draw(DrawPoint(centerX - 206, topContent + 72), "Small permanent values: soldiers, gold, swords",
-                            FontStyle{}, COLOR_YELLOW);
-            SmallFont->Draw(DrawPoint(centerX - 206, topContent + 96), "Toggle panels replace old main/submenu travel",
-                            FontStyle{}, COLOR_YELLOW);
-            SmallFont->Draw(DrawPoint(centerX - 206, topContent + 120), "Map remains dominant; details open on demand",
-                            FontStyle{}, COLOR_YELLOW);
-            DrawChip(DrawPoint(centerX - 198, topContent + 144), Extent(76, 24), "Build");
-            DrawChip(DrawPoint(centerX - 114, topContent + 144), Extent(76, 24), "Roads");
-            DrawChip(DrawPoint(centerX - 30, topContent + 144), Extent(76, 24), "Military");
-            DrawChip(DrawPoint(centerX + 54, topContent + 144), Extent(76, 24), "Economy");
-            DrawChip(DrawPoint(centerX + 138, topContent + 144), Extent(76, 24), "Messages");
+                             "Icon-first compact HUD direction");
+            DrawIconValueChip(DrawPoint(centerX - 190, topContent + 70), Extent(58, 24), PreviewGlyph::Soldier,
+                              std::to_string(hudData_.totalSoldiers), COLOR_WARNING);
+            DrawIconValueChip(DrawPoint(centerX - 124, topContent + 70), Extent(58, 24), PreviewGlyph::Gold,
+                              hudData_.resourceChips[0].value, COLOR_EARTH_EDGE);
+            DrawIconValueChip(DrawPoint(centerX - 58, topContent + 70), Extent(58, 24), PreviewGlyph::Sword,
+                              hudData_.resourceChips[1].value, COLOR_EARTH_EDGE);
+            DrawIconValueChip(DrawPoint(centerX + 8, topContent + 70), Extent(58, 24), PreviewGlyph::Post,
+                              std::to_string(hudData_.messageCount), COLOR_WARNING, hudData_.messageCount > 0);
+            DrawIconValueChip(DrawPoint(centerX + 74, topContent + 70), Extent(86, 24), PreviewGlyph::Map,
+                              MapSizeValue(hudData_.mapSummary), COLOR_EARTH_EDGE);
+            SmallFont->Draw(DrawPoint(centerX - 190, topContent + 112),
+                            "Labels stay in panels; permanent bars carry symbols and counts", FontStyle{},
+                            COLOR_YELLOW);
+            SmallFont->Draw(DrawPoint(centerX - 190, topContent + 136), "mock/live markers stay subdued", FontStyle{},
+                            COLOR_MUTED_MARKER);
             break;
         }
         case PreviewState::ToggleBuildRoads:
@@ -702,10 +939,8 @@ void dskIngameUiPreview::DrawPreviewState() const
             {
                 const DrawPoint rowPos(mainPanelPos.x + 370 + static_cast<int>(i % 2) * 130,
                                        mainPanelPos.y + 44 + static_cast<int>(i / 2) * 25);
-                DrawRectangle(Rect(rowPos, Extent(120, 18)), i % 2 == 0 ? 0xAA4A4029 : 0xAA3B3322);
-                SmallFont->Draw(rowPos + DrawPoint(10, 4),
-                                hudData_.resourceChips[i].label + "  " + hudData_.resourceChips[i].value, FontStyle{},
-                                COLOR_YELLOW);
+                DrawIconValueChip(rowPos, Extent(92, 20), ResourceGlyph(hudData_.resourceChips[i].icon),
+                                  hudData_.resourceChips[i].value, i == 2 ? COLOR_WARNING : COLOR_EARTH_EDGE);
             }
             SmallFont->Draw(DrawPoint(mainPanelPos.x + 370, mainPanelPos.y + 130),
                             "Storage pressure: not safely accessible yet", FontStyle{}, COLOR_WARNING);
@@ -717,16 +952,20 @@ void dskIngameUiPreview::DrawPreviewState() const
             DrawRectangle(Rect(DrawPoint(centerX - 250, topContent + 52), Extent(500, 24)), 0xCC6D4D26);
             SmallFont->Draw(DrawPoint(centerX - 236, topContent + 58),
                             "Toast: latest message text not safely accessible yet", FontStyle{}, COLOR_WARNING);
-            DrawChip(DrawPoint(centerX + 164, topContent + 54), Extent(64, 20), "Mute");
+            DrawIconValueChip(DrawPoint(centerX + 164, topContent + 54), Extent(58, 20), PreviewGlyph::Post,
+                              std::to_string(hudData_.messageCount), COLOR_WARNING, hudData_.messageCount > 0);
             SmallFont->Draw(DrawPoint(centerX - 236, topContent + 88),
                             "Unread: " + std::to_string(hudData_.messageCount) + " | latest label stays unavailable",
                             FontStyle{}, COLOR_YELLOW);
 
             DrawClassicPanel(DrawPoint(26, bottomBarTop - 174), Extent(210, 154), "Map bottom-left");
             DrawMiniMap(DrawPoint(44, bottomBarTop - 128), Extent(174, 82));
-            DrawChip(DrawPoint(48, bottomBarTop - 38), Extent(48, 20), "Zoom+");
-            DrawChip(DrawPoint(102, bottomBarTop - 38), Extent(48, 20), "Zoom-");
-            DrawChip(DrawPoint(156, bottomBarTop - 38), Extent(58, 20), "Collapse");
+            DrawIconValueChip(DrawPoint(48, bottomBarTop - 38), Extent(48, 20), PreviewGlyph::Map, "+",
+                              COLOR_EARTH_EDGE, false, "plh");
+            DrawIconValueChip(DrawPoint(102, bottomBarTop - 38), Extent(48, 20), PreviewGlyph::Map, "-",
+                              COLOR_EARTH_EDGE, false, "plh");
+            DrawIconValueChip(DrawPoint(156, bottomBarTop - 38), Extent(58, 20), PreviewGlyph::Disabled, "", COLOR_GREY,
+                              false, "plh");
 
             DrawClassicPanel(DrawPoint(26, topContent + 152), Extent(210, 136), "Map top-left");
             DrawMiniMap(DrawPoint(44, topContent + 194), Extent(174, 70));
@@ -738,10 +977,12 @@ void dskIngameUiPreview::DrawPreviewState() const
             DrawClassicPanel(DrawPoint(centerX - 250, topContent + 54), Extent(500, 176), "Selection / Context");
             SmallFont->Draw(DrawPoint(centerX - 226, topContent + 92), hudData_.selectedSummary, FontStyle{},
                             COLOR_YELLOW);
-            SmallFont->Draw(DrawPoint(centerX - 226, topContent + 116),
-                            "Inventory snippets: Gold " + hudData_.resourceChips[0].value + " | Swords "
-                              + hudData_.resourceChips[1].value + " | Boards " + hudData_.resourceChips[4].value,
-                            FontStyle{}, COLOR_YELLOW);
+            DrawIconValueChip(DrawPoint(centerX - 226, topContent + 116), Extent(70, 20), PreviewGlyph::Gold,
+                              hudData_.resourceChips[0].value, COLOR_EARTH_EDGE);
+            DrawIconValueChip(DrawPoint(centerX - 148, topContent + 116), Extent(70, 20), PreviewGlyph::Sword,
+                              hudData_.resourceChips[1].value, COLOR_EARTH_EDGE);
+            DrawIconValueChip(DrawPoint(centerX - 70, topContent + 116), Extent(70, 20), PreviewGlyph::Boards,
+                              hudData_.resourceChips[4].value, COLOR_EARTH_EDGE);
             const std::array<const char*, 8> contextActions = {
               {"View", "Center", "Goods", "Workers", "Pin", "Close", "Upgrade", "Stop"}};
             DrawActionGrid(DrawPoint(centerX - 226, topContent + 144), contextActions, 0, 7);

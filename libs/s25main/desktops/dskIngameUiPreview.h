@@ -29,6 +29,7 @@ public:
     void Resize(const Extent& newSize) override;
     void Msg_ButtonClick(unsigned ctrl_id) override;
     void Msg_PaintBefore() override;
+    void Msg_PaintAfter() override;
     bool Msg_KeyDown(const KeyEvent& ke) override;
 
 private:

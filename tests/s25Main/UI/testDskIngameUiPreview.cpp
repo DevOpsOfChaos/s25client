@@ -30,12 +30,21 @@ bool HasTextButton(const dskIngameUiPreview& preview, const std::string& expecte
     });
 }
 
-const ctrlTextButton* FindTextButton(const dskIngameUiPreview& preview, const std::string& expected)
+unsigned CountTextButtons(const dskIngameUiPreview& preview, const std::string& expected)
 {
     const auto buttons = preview.GetCtrls<ctrlButton>();
-    const auto buttonIt = std::find_if(buttons.begin(), buttons.end(), [&expected](const ctrlButton* button) {
+    return static_cast<unsigned>(std::count_if(buttons.begin(), buttons.end(), [&expected](const ctrlButton* button) {
         const auto* textButton = dynamic_cast<const ctrlTextButton*>(button);
         return textButton && textButton->GetText() == expected;
+    }));
+}
+
+const ctrlTextButton* FindBlankDisabledTextButton(const dskIngameUiPreview& preview)
+{
+    const auto buttons = preview.GetCtrls<ctrlButton>();
+    const auto buttonIt = std::find_if(buttons.begin(), buttons.end(), [](const ctrlButton* button) {
+        const auto* textButton = dynamic_cast<const ctrlTextButton*>(button);
+        return textButton && textButton->GetText().empty() && !textButton->GetEnabled();
     });
     return buttonIt != buttons.end() ? dynamic_cast<const ctrlTextButton*>(*buttonIt) : nullptr;
 }
@@ -50,7 +59,7 @@ BOOST_FIXTURE_TEST_CASE(IngameUiPreviewWorkbenchConstructsDeveloperOnlyTogglePan
     BOOST_TEST(HasText(preview, "Static mock data"));
     BOOST_TEST(HasText(preview, "Not product UI"));
     BOOST_TEST(HasText(preview, "No gameplay logic"));
-    BOOST_TEST(HasText(preview, "no map/simulation/network/save"));
+    BOOST_TEST(HasText(preview, "product UI and gameplay untouched"));
     BOOST_TEST(HasText(preview, "Preview size:"));
     BOOST_TEST(HasText(preview, "GUI scale:"));
     BOOST_TEST(HasText(preview, "Texture filtering:"));
@@ -74,21 +83,21 @@ BOOST_FIXTURE_TEST_CASE(IngameUiPreviewWorkbenchConstructsDeveloperOnlyTogglePan
     BOOST_TEST(HasText(preview, "latest=not safely accessible yet"));
     BOOST_TEST(HasText(preview, "command eligibility=not safely accessible yet"));
 
-    BOOST_TEST(HasTextButton(preview, "1 Compact HUD"));
-    BOOST_TEST(HasTextButton(preview, "2 Build/Roads"));
-    BOOST_TEST(HasTextButton(preview, "3 Mil/Eco"));
-    BOOST_TEST(HasTextButton(preview, "4 Msg/Map"));
-    BOOST_TEST(HasTextButton(preview, "5 Selection"));
-    BOOST_TEST(HasTextButton(preview, "6 Small"));
-    BOOST_TEST(HasTextButton(preview, "Build"));
-    BOOST_TEST(HasTextButton(preview, "Roads"));
-    BOOST_TEST(HasTextButton(preview, "Military"));
-    BOOST_TEST(HasTextButton(preview, "Economy"));
-    BOOST_TEST(HasTextButton(preview, "Messages"));
-    BOOST_TEST(HasTextButton(preview, "Map"));
-    BOOST_TEST(HasTextButton(preview, "Selection"));
+    BOOST_TEST(HasTextButton(preview, "1 HUD"));
+    BOOST_TEST(HasTextButton(preview, "2 B/R"));
+    BOOST_TEST(HasTextButton(preview, "3 M/E"));
+    BOOST_TEST(HasTextButton(preview, "4 P/Map"));
+    BOOST_TEST(HasTextButton(preview, "5 Sel"));
+    BOOST_TEST(HasTextButton(preview, "6 Stress"));
+    BOOST_TEST(CountTextButtons(preview, "") >= 10u);
     BOOST_TEST(HasTextButton(preview, "Back"));
 
+    BOOST_TEST(!HasTextButton(preview, "Build"));
+    BOOST_TEST(!HasTextButton(preview, "Roads"));
+    BOOST_TEST(!HasTextButton(preview, "Military"));
+    BOOST_TEST(!HasTextButton(preview, "Economy"));
+    BOOST_TEST(!HasTextButton(preview, "Messages"));
+    BOOST_TEST(!HasTextButton(preview, "Selection"));
     BOOST_TEST(!HasTextButton(preview, "E Modern HUD"));
     BOOST_TEST(!HasTextButton(preview, "2 Legacy menu"));
     BOOST_TEST(!HasTextButton(preview, "3 Edge drawers"));
@@ -104,9 +113,9 @@ BOOST_FIXTURE_TEST_CASE(IngameUiPreviewWorkbenchSwitchesReducedTogglePanelStates
     BOOST_TEST(HasText(preview, "House category and road/flag tools"));
     BOOST_TEST(HasText(preview, "Commands group is visible but dispatch stays disabled"));
     BOOST_TEST(HasText(preview, "No terrain, ownership, pathfinding"));
-    BOOST_TEST(HasTextButton(preview, "Road"));
-    BOOST_TEST(HasTextButton(preview, "Flag"));
-    const ctrlTextButton* disabledButton = FindTextButton(preview, "Disabled");
+    BOOST_TEST(!HasTextButton(preview, "Road"));
+    BOOST_TEST(!HasTextButton(preview, "Flag"));
+    const ctrlTextButton* disabledButton = FindBlankDisabledTextButton(preview);
     BOOST_TEST_REQUIRE(disabledButton);
     BOOST_TEST(!disabledButton->GetEnabled());
 
@@ -116,8 +125,8 @@ BOOST_FIXTURE_TEST_CASE(IngameUiPreviewWorkbenchSwitchesReducedTogglePanelStates
     BOOST_TEST(HasText(preview, "status/capacity stay unavailable"));
     BOOST_TEST(HasText(preview, "Economy panel uses resources group"));
     BOOST_TEST(HasText(preview, "No barracks, production, combat"));
-    BOOST_TEST(HasTextButton(preview, "Readiness"));
-    BOOST_TEST(HasTextButton(preview, "Resources"));
+    BOOST_TEST(!HasTextButton(preview, "Readiness"));
+    BOOST_TEST(!HasTextButton(preview, "Resources"));
 
     BOOST_TEST(preview.Msg_KeyDown(KeyEvent('4')));
     BOOST_TEST(HasText(preview, "Active preview state: Messages + Minimap"));
@@ -126,8 +135,8 @@ BOOST_FIXTURE_TEST_CASE(IngameUiPreviewWorkbenchSwitchesReducedTogglePanelStates
     BOOST_TEST(HasText(preview, "Map panel uses map group"));
     BOOST_TEST(HasText(preview, "Zoom + / Zoom - / collapse / expand"));
     BOOST_TEST(HasText(preview, "No real map data"));
-    BOOST_TEST(HasTextButton(preview, "Mute"));
-    BOOST_TEST(HasTextButton(preview, "Zoom +"));
+    BOOST_TEST(!HasTextButton(preview, "Mute"));
+    BOOST_TEST(!HasTextButton(preview, "Zoom +"));
 
     BOOST_TEST(preview.Msg_KeyDown(KeyEvent('5')));
     BOOST_TEST(HasText(preview, "Active preview state: Selected Object / Context Panel"));
@@ -135,9 +144,9 @@ BOOST_FIXTURE_TEST_CASE(IngameUiPreviewWorkbenchSwitchesReducedTogglePanelStates
     BOOST_TEST(HasText(preview, "Selection group feeds selected object summary"));
     BOOST_TEST(HasText(preview, "command dispatch remains disabled"));
     BOOST_TEST(HasText(preview, "No object command"));
-    BOOST_TEST(HasTextButton(preview, "Inspect"));
-    BOOST_TEST(HasTextButton(preview, "Center"));
-    const ctrlTextButton* commandButton = FindTextButton(preview, "Command");
+    BOOST_TEST(!HasTextButton(preview, "Inspect"));
+    BOOST_TEST(!HasTextButton(preview, "Center"));
+    const ctrlTextButton* commandButton = FindBlankDisabledTextButton(preview);
     BOOST_TEST_REQUIRE(commandButton);
     BOOST_TEST(!commandButton->GetEnabled());
 
